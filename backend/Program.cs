@@ -27,7 +27,34 @@ if (string.IsNullOrWhiteSpace(rawConnectionString))
 }
 
 // Clean up the string (remove quotes if present from env var) and handle null
+// Clean up the string (remove quotes if present from env var) and handle null
 rawConnectionString = (rawConnectionString ?? "").Trim().Trim('"').Trim('\'');
+
+// Support URI-style connection strings (common in Render/Supabase)
+if (!string.IsNullOrWhiteSpace(rawConnectionString) &&
+    (rawConnectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) ||
+     rawConnectionString.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase)))
+{
+    try
+    {
+        var uri = new Uri(rawConnectionString);
+        var userInfo = uri.UserInfo.Split(':');
+        var npgsqlBuilder = new NpgsqlConnectionStringBuilder
+        {
+            Host = uri.Host,
+            Port = uri.Port > 0 ? uri.Port : 5432,
+            Username = userInfo.Length > 0 ? userInfo[0] : "",
+            Password = userInfo.Length > 1 ? userInfo[1] : "",
+            Database = uri.AbsolutePath.TrimStart('/')
+        };
+        rawConnectionString = npgsqlBuilder.ToString();
+        Console.WriteLine("Successfully converted URI connection string to Npgsql format.");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Warning: Failed to parse connection string as URI: {ex.Message}");
+    }
+}
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(rawConnectionString, 
