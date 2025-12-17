@@ -62,8 +62,9 @@ if (!string.IsNullOrEmpty(connectionString) &&
                 var projectId = hostParts[1];
                 var originalUser = builderNpgsql.Username;
                 
-                // Try sa-east-1 (likely for this user) and us-east-1 (fallback)
-                var regions = new[] { "sa-east-1", "us-east-1" };
+                // Try common Supabase regions. 
+                // We must probe because DNS resolves for all, but only the correct region accepts the tenant.
+                var regions = new[] { "us-east-1", "sa-east-1", "eu-central-1", "ap-southeast-1" };
                 bool poolerFound = false;
 
                 foreach (var region in regions)
@@ -77,9 +78,36 @@ if (!string.IsNullOrEmpty(connectionString) &&
                         
                         if (poolerIpv4 != null)
                         {
+                            // Probe connection to verify if this region hosts the tenant
+                            var probeBuilder = new Npgsql.NpgsqlConnectionStringBuilder(builderNpgsql.ConnectionString)
+                            {
+                                Host = poolerHost,
+                                Port = 6543, // Session mode
+                                Username = $"{originalUser}.{projectId}",
+                                Pooling = false,
+                                Timeout = 3
+                            };
+
+                            try 
+                            {
+                                Console.WriteLine($"--- PROBE: Testing connection to {poolerHost}...");
+                                using var probeConn = new Npgsql.NpgsqlConnection(probeBuilder.ToString());
+                                await probeConn.OpenAsync();
+                                Console.WriteLine($"--- PROBE: Success!");
+                            }
+                            catch (Npgsql.PostgresException pex) when (pex.SqlState == "XX000") 
+                            {
+                                Console.WriteLine($"--- PROBE: Tenant not found in {region}. Trying next...");
+                                continue;
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine($"--- PROBE: Connection attempt finished with: {ex.Message}. Assuming correct region.");
+                            }
+
                             Console.WriteLine($"--- CONFIG: Switching to IPv4 Pooler: {poolerHost} ({poolerIpv4})");
                             builderNpgsql.Host = poolerHost; 
-                            builderNpgsql.Port = 5432; // Session mode
+                            builderNpgsql.Port = 6543; // Session mode
                             builderNpgsql.Username = $"{originalUser}.{projectId}";
                             poolerFound = true;
                             break;
