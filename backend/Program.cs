@@ -56,6 +56,9 @@ if (!string.IsNullOrWhiteSpace(rawConnectionString) &&
     }
 }
 
+// Proactively check connection and fallback to pooler if needed (fixes IPv6 issues on Docker/Render)
+rawConnectionString = await TryFindWorkingConnection(rawConnectionString);
+
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(rawConnectionString, 
                       o => o.EnableRetryOnFailure()));
@@ -100,3 +103,76 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+async Task<string> TryFindWorkingConnection(string connectionString)
+{
+    // If empty, nothing to probe
+    if (string.IsNullOrWhiteSpace(connectionString)) return connectionString;
+
+    Console.WriteLine("Validating database connection...");
+    if (await IsConnectionWorking(connectionString)) 
+    {
+        Console.WriteLine("Direct connection is working.");
+        return connectionString;
+    }
+    
+    Console.WriteLine("Direct connection failed. Attempting to fallback to Supabase poolers (IPv4 workarounds)...");
+
+    var builder = new NpgsqlConnectionStringBuilder(connectionString);
+    var originalHost = builder.Host;
+
+    // Priority list of regions to try (sa-east-1 first for Brazil)
+    var regions = new[] { 
+        "sa-east-1", 
+        "us-east-1", 
+        "eu-central-1", 
+        "ap-southeast-1",
+        "us-west-1",
+        "eu-west-1",
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-west-2",
+        "eu-west-3"
+    };
+
+    foreach (var region in regions)
+    {
+        var poolerHost = $"aws-0-{region}.pooler.supabase.com";
+        // Try Session mode (port 5432) for compatibility
+        builder.Host = poolerHost;
+        builder.Port = 5432; 
+        
+        var candidate = builder.ToString();
+        Console.WriteLine($"Testing connectivity to pooler: {poolerHost}...");
+        
+        if (await IsConnectionWorking(candidate))
+        {
+            Console.WriteLine($"Successfully connected via {poolerHost}! Updating connection string.");
+            return candidate;
+        }
+    }
+    
+    Console.WriteLine("All fallback attempts failed. Returning original connection string.");
+    return connectionString;
+}
+
+async Task<bool> IsConnectionWorking(string connString)
+{
+    try
+    {
+        var builder = new NpgsqlConnectionStringBuilder(connString);
+        // Short timeout for probing
+        builder.Timeout = 5; 
+        using var conn = new NpgsqlConnection(builder.ToString());
+        await conn.OpenAsync();
+        return true;
+    }
+    catch (Exception ex)
+    {
+        // Nice to see why it failed
+        Console.WriteLine($"Probe failed: {ex.Message}");
+        return false;
+    }
+}
