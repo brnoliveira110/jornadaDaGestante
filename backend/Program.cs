@@ -30,7 +30,7 @@ if (!string.IsNullOrEmpty(connectionString) &&
         Host = databaseUri.Host,
         Port = databaseUri.Port,
         Username = userInfo[0],
-        Password = userInfo.Length > 1 ? userInfo[1] : null,
+        Password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : null,
         Database = databaseUri.LocalPath.TrimStart('/'),
         SslMode = Npgsql.SslMode.Require,
     };
@@ -50,12 +50,10 @@ if (!string.IsNullOrEmpty(connectionString) &&
 
         if (ipv4Address != null)
         {
-            Console.WriteLine($"--- DNS: Resolved to IPv4: {ipv4Address}");
             builderNpgsql.Host = ipv4Address.ToString();
         }
         else
         {
-            Console.WriteLine("--- DNS: No IPv4 address found for db host. Attempting fallback to Supabase IPv4 Pooler...");
             
             // Extract Project ID (e.g., db.abcdefg.supabase.co -> abcdefg)
             var hostParts = builderNpgsql.Host.Split('.');
