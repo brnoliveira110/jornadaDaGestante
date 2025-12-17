@@ -34,6 +34,13 @@ if (!string.IsNullOrEmpty(connectionString) &&
         TrustServerCertificate = true
     };
 
+    // Supabase: Force port 6543 (Session Pooler) if on port 5432 to ensure IPv4 compatibility
+    if (builderNpgsql.Host.Contains("supabase.co") && builderNpgsql.Port == 5432)
+    {
+        builderNpgsql.Port = 6543;
+        Console.WriteLine("--- CONFIG: Switched to Supabase Pooler port 6543 for IPv4 compatibility.");
+    }
+
     try
     {
         Console.WriteLine($"--- DNS: Resolving host {builderNpgsql.Host}...");
