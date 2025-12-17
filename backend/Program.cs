@@ -28,6 +28,12 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+// Log the connection string for debugging
+var loggerForDebug = app.Services.GetRequiredService<ILogger<Program>>();
+var connectionStringForDebug = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING");
+loggerForDebug.LogInformation("--- DEBUG: Reading environment variable DB_CONNECTION_STRING.");
+loggerForDebug.LogInformation("--- DEBUG: Value is: '{ConnectionString}'", connectionStringForDebug);
+
 // Automatically apply EF Core migrations on startup
 using (var scope = app.Services.CreateScope())
 {
