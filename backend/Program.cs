@@ -94,10 +94,10 @@ if (!string.IsNullOrWhiteSpace(rawConnectionString) &&
 }
 
 
-var ipv4ConnectionString = ResolveHostToIpv4(rawConnectionString);
+var finalConnectionString = await TryFindWorkingConnection(rawConnectionString);
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(ipv4ConnectionString, 
+    options.UseNpgsql(finalConnectionString, 
                       o => o.EnableRetryOnFailure()));
 
 builder.Services.AddCors(options =>
@@ -157,9 +157,18 @@ async Task<string> TryFindWorkingConnection(string connectionString)
 
     var builder = new NpgsqlConnectionStringBuilder(connectionString);
     var originalHost = builder.Host;
+    string? projectId = null;
+
+    // Extract Supabase Project ID if possible (format: db.PROJECTID.supabase.co)
+    if (!string.IsNullOrEmpty(originalHost) && originalHost.StartsWith("db.") && originalHost.Contains(".supabase.co"))
+    {
+        var parts = originalHost.Split('.');
+        if (parts.Length > 1) projectId = parts[1];
+    }
 
     // Priority list of regions to try (sa-east-1 first for Brazil)
     var regions = new[] { 
+        "us-east-2",
         "sa-east-1", 
         "us-east-1", 
         "eu-central-1", 
@@ -177,9 +186,14 @@ async Task<string> TryFindWorkingConnection(string connectionString)
     foreach (var region in regions)
     {
         var poolerHost = $"aws-0-{region}.pooler.supabase.com";
-        // Try Session mode (port 5432) for compatibility
+        // Try Session mode (port 6543) for EF Core compatibility
         builder.Host = poolerHost;
-        builder.Port = 5432; 
+        builder.Port = 6543; 
+
+        if (projectId != null && !string.IsNullOrEmpty(builder.Username) && !builder.Username.Contains(projectId))
+        {
+            builder.Username = $"{builder.Username}.{projectId}";
+        }
         
         var candidate = builder.ToString();
         Console.WriteLine($"Testing connectivity to pooler: {poolerHost}...");
