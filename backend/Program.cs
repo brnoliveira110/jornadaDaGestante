@@ -17,6 +17,24 @@ builder.Services.AddSwaggerGen();
 // Configure DbContext to use PostgreSQL
 var connectionString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING");
 
+if (!string.IsNullOrEmpty(connectionString) && 
+    (connectionString.StartsWith("postgres://") || connectionString.StartsWith("postgresql://")))
+{
+    var databaseUri = new Uri(connectionString);
+    var userInfo = databaseUri.UserInfo.Split(new[] { ':' }, 2);
+    var builderNpgsql = new Npgsql.NpgsqlConnectionStringBuilder
+    {
+        Host = databaseUri.Host,
+        Port = databaseUri.Port,
+        Username = userInfo[0],
+        Password = userInfo.Length > 1 ? userInfo[1] : null,
+        Database = databaseUri.LocalPath.TrimStart('/'),
+        SslMode = Npgsql.SslMode.Require,
+        TrustServerCertificate = true
+    };
+    connectionString = builderNpgsql.ToString();
+}
+
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
 
