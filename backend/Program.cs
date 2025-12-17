@@ -62,69 +62,72 @@ if (!string.IsNullOrEmpty(connectionString) &&
                 var projectId = hostParts[1];
                 var originalUser = builderNpgsql.Username;
                 
-                // Try common Supabase regions. 
-                // We must probe because DNS resolves for all, but only the correct region accepts the tenant.
+                // Try sa-east-1 first (detected via IP previously), then others
                 var regions = new[] { 
-                    "us-east-2", "us-east-1", "sa-east-1", "eu-central-1", "ap-southeast-1",
+                    "sa-east-1", "us-east-1", "us-east-2", "eu-central-1", "ap-southeast-1",
                     "us-west-1", "us-west-2", "eu-west-1", "eu-west-2", "eu-west-3",
                     "ap-northeast-1", "ap-northeast-2", "ap-south-1", "ap-southeast-2",
                     "ca-central-1"
                 };
-                bool poolerFound = false;
+                
+                string confirmedPoolerHost = null;
 
                 foreach (var region in regions)
                 {
                     var poolerHost = $"aws-0-{region}.pooler.supabase.com";
                     try
                     {
-                        Console.WriteLine($"--- DNS: Checking pooler {poolerHost}...");
                         var poolerIps = await Dns.GetHostAddressesAsync(poolerHost);
                         var poolerIpv4 = poolerIps.FirstOrDefault(ip => ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
                         
                         if (poolerIpv4 != null)
                         {
-                            // Probe connection to verify if this region hosts the tenant
                             var probeBuilder = new Npgsql.NpgsqlConnectionStringBuilder(builderNpgsql.ConnectionString)
                             {
                                 Host = poolerHost,
-                                Port = 6543, // Session mode
+                                Port = 6543,
                                 Username = $"{originalUser}.{projectId}",
+                                Options = $"reference={projectId}",
                                 Pooling = false,
                                 Timeout = 3
                             };
+                            // Ensure password is correct (unescaped)
+                            probeBuilder.Password = builderNpgsql.Password;
 
+                            Console.WriteLine($"--- PROBE: Testing connection to {poolerHost}...");
                             try 
                             {
-                                Console.WriteLine($"--- PROBE: Testing connection to {poolerHost}...");
                                 using var probeConn = new Npgsql.NpgsqlConnection(probeBuilder.ToString());
                                 await probeConn.OpenAsync();
-                                Console.WriteLine($"--- PROBE: Success!");
+                                Console.WriteLine($"--- PROBE: Success! Found correct region: {region}");
+                                confirmedPoolerHost = poolerHost;
+                                break;
                             }
                             catch (Npgsql.PostgresException pex) when (pex.SqlState == "XX000") 
                             {
-                                Console.WriteLine($"--- PROBE: Tenant not found in {region}. Trying next...");
-                                continue;
+                                // Tenant not found in this region
+                                continue; 
                             }
                             catch (Exception ex)
                             {
-                                Console.WriteLine($"--- PROBE: Connection attempt finished with: {ex.Message}. Assuming correct region.");
+                                Console.WriteLine($"--- PROBE: Error {ex.Message}. Moving on.");
                             }
-
-                            Console.WriteLine($"--- CONFIG: Switching to IPv4 Pooler: {poolerHost} ({poolerIpv4})");
-                            builderNpgsql.Host = poolerHost; 
-                            builderNpgsql.Port = 6543; // Session mode
-                            builderNpgsql.Username = $"{originalUser}.{projectId}";
-                            poolerFound = true;
-                            break;
                         }
                     }
-                    catch { /* Ignore DNS failures for regions */ }
+                    catch { /* DNS/Network error */ }
                 }
 
-                if (!poolerFound)
+                if (string.IsNullOrEmpty(confirmedPoolerHost))
                 {
-                     Console.WriteLine("--- DNS: Could not find a reachable IPv4 pooler.");
+                     Console.WriteLine("--- DNS: Could not confirm any pooler region. Defaulting to sa-east-1.");
+                     confirmedPoolerHost = "aws-0-sa-east-1.pooler.supabase.com";
                 }
+
+                Console.WriteLine($"--- CONFIG: Switching to IPv4 Pooler: {confirmedPoolerHost}");
+                builderNpgsql.Host = confirmedPoolerHost; 
+                builderNpgsql.Port = 6543;
+                builderNpgsql.Username = $"{originalUser}.{projectId}";
+                builderNpgsql.Options = $"reference={projectId}";
             }
             else
             {
