@@ -33,7 +33,6 @@ if (!string.IsNullOrEmpty(connectionString) &&
         Password = userInfo.Length > 1 ? userInfo[1] : null,
         Database = databaseUri.LocalPath.TrimStart('/'),
         SslMode = Npgsql.SslMode.Require,
-        TrustServerCertificate = true
     };
 
     // Supabase: Force port 6543 (Session Pooler) if on port 5432 to ensure IPv4 compatibility
@@ -46,8 +45,25 @@ if (!string.IsNullOrEmpty(connectionString) &&
     try
     {
         Console.WriteLine($"--- DNS: Resolving host {builderNpgsql.Host}...");
-        var ipAddresses = await Dns.GetHostAddressesAsync(builderNpgsql.Host);
-        var ipv4Address = ipAddresses.FirstOrDefault(ip => ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
+        var hostEntry = await Dns.GetHostEntryAsync(builderNpgsql.Host);
+        
+        foreach (var ip in hostEntry.AddressList)
+        {
+             Console.WriteLine($"--- DNS: Found IP: {ip} ({ip.AddressFamily})");
+        }
+
+        var ipv4Address = hostEntry.AddressList.FirstOrDefault(ip => ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
+        
+        if (ipv4Address == null)
+        {
+             var ipv6Mapped = hostEntry.AddressList.FirstOrDefault(ip => ip.IsIPv4MappedToIPv6);
+             if (ipv6Mapped != null)
+             {
+                 ipv4Address = ipv6Mapped.MapToIPv4();
+                 Console.WriteLine($"--- DNS: Found IPv4 mapped to IPv6: {ipv4Address}");
+             }
+        }
+
         if (ipv4Address != null)
         {
             Console.WriteLine($"--- DNS: Resolved to IPv4: {ipv4Address}");
@@ -55,7 +71,7 @@ if (!string.IsNullOrEmpty(connectionString) &&
         }
         else
         {
-            Console.WriteLine("--- DNS: No IPv4 address found.");
+            Console.WriteLine("--- DNS: No IPv4 address found. Connection may fail in IPv4-only environments.");
         }
     }
     catch (Exception ex) { Console.WriteLine($"--- DNS: Failed to resolve host: {ex.Message}"); }
