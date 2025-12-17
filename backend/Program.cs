@@ -1,6 +1,7 @@
 using backend.Data;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
+using System.Net;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,6 +33,18 @@ if (!string.IsNullOrEmpty(connectionString) &&
         SslMode = Npgsql.SslMode.Require,
         TrustServerCertificate = true
     };
+
+    try
+    {
+        var ipAddresses = await Dns.GetHostAddressesAsync(builderNpgsql.Host);
+        var ipv4Address = ipAddresses.FirstOrDefault(ip => ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
+        if (ipv4Address != null)
+        {
+            builderNpgsql.Host = ipv4Address.ToString();
+        }
+    }
+    catch { }
+
     connectionString = builderNpgsql.ToString();
 }
 
