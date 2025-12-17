@@ -2,6 +2,8 @@ using backend.Data;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
 using System.Net;
+using System.Net.Sockets;
+using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,9 +17,42 @@ builder.Services.AddControllers()
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// Helper function to force IPv4 resolution for Render compatibility
+static string ResolveHostToIpv4(string connectionString)
+{
+    try 
+    {
+        var builder = new NpgsqlConnectionStringBuilder(connectionString);
+        // If it's already an IP, skip
+        if (IPAddress.TryParse(builder.Host, out _)) return connectionString;
+
+        Console.WriteLine($"--- DNS: Resolving host {builder.Host} to IPv4...");
+        var hostEntry = Dns.GetHostEntry(builder.Host!);
+        
+        // Find the first InterNetwork (IPv4) address
+        var ipv4 = hostEntry.AddressList.FirstOrDefault(ip => ip.AddressFamily == AddressFamily.InterNetwork);
+
+        if (ipv4 != null)
+        {
+            Console.WriteLine($"--- DNS: Resolved to {ipv4}");
+            builder.Host = ipv4.ToString();
+            return builder.ToString();
+        }
+        Console.WriteLine("--- DNS: No IPv4 address found. Using original host.");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"--- DNS Error: {ex.Message}");
+    }
+    return connectionString;
+}
+
 // Configure DbContext to use PostgreSQL
+var rawConnectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? "";
+var ipv4ConnectionString = ResolveHostToIpv4(rawConnectionString);
+
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"), 
+    options.UseNpgsql(ipv4ConnectionString, 
                       o => o.EnableRetryOnFailure()));
 
 builder.Services.AddCors(options =>
