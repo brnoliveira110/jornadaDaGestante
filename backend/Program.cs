@@ -19,8 +19,10 @@ builder.Services.AddSwaggerGen();
 var connectionString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING");
 
 if (!string.IsNullOrEmpty(connectionString) && 
-    (connectionString.StartsWith("postgres://") || connectionString.StartsWith("postgresql://")))
+    (connectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) || 
+     connectionString.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase)))
 {
+    Console.WriteLine("--- CONFIG: Detected URI-style connection string. Parsing...");
     var databaseUri = new Uri(connectionString);
     var userInfo = databaseUri.UserInfo.Split(new[] { ':' }, 2);
     var builderNpgsql = new Npgsql.NpgsqlConnectionStringBuilder
