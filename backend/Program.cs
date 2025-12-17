@@ -38,7 +38,7 @@ static string ResolveHostToIpv4(string connectionString)
             builder.Host = ipv4.ToString();
             return builder.ToString();
         }
-        Console.WriteLine("--- DNS: No IPv4 address found. Using original host.");
+        Console.WriteLine("--- DNS: No IPv4 and address found. Using original host.");
     }
     catch (Exception ex)
     {
@@ -48,7 +48,17 @@ static string ResolveHostToIpv4(string connectionString)
 }
 
 // Configure DbContext to use PostgreSQL
-var rawConnectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? "";
+var rawConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+// Fallback to DB_CONNECTION_STRING if not found (common in Render/Docker)
+if (string.IsNullOrWhiteSpace(rawConnectionString))
+{
+    rawConnectionString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING");
+}
+
+// Clean up the string (remove quotes if present from env var) and handle null
+rawConnectionString = (rawConnectionString ?? "").Trim().Trim('"').Trim('\'');
+
 var ipv4ConnectionString = ResolveHostToIpv4(rawConnectionString);
 
 builder.Services.AddDbContext<AppDbContext>(options =>
