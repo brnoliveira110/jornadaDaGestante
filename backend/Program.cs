@@ -45,24 +45,8 @@ if (!string.IsNullOrEmpty(connectionString) &&
     try
     {
         Console.WriteLine($"--- DNS: Resolving host {builderNpgsql.Host}...");
-        var hostEntry = await Dns.GetHostEntryAsync(builderNpgsql.Host);
-        
-        foreach (var ip in hostEntry.AddressList)
-        {
-             Console.WriteLine($"--- DNS: Found IP: {ip} ({ip.AddressFamily})");
-        }
-
-        var ipv4Address = hostEntry.AddressList.FirstOrDefault(ip => ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
-        
-        if (ipv4Address == null)
-        {
-             var ipv6Mapped = hostEntry.AddressList.FirstOrDefault(ip => ip.IsIPv4MappedToIPv6);
-             if (ipv6Mapped != null)
-             {
-                 ipv4Address = ipv6Mapped.MapToIPv4();
-                 Console.WriteLine($"--- DNS: Found IPv4 mapped to IPv6: {ipv4Address}");
-             }
-        }
+        var ipAddresses = await Dns.GetHostAddressesAsync(builderNpgsql.Host);
+        var ipv4Address = ipAddresses.FirstOrDefault(ip => ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
 
         if (ipv4Address != null)
         {
@@ -71,7 +55,50 @@ if (!string.IsNullOrEmpty(connectionString) &&
         }
         else
         {
-            Console.WriteLine("--- DNS: No IPv4 address found. Connection may fail in IPv4-only environments.");
+            Console.WriteLine("--- DNS: No IPv4 address found for db host. Attempting fallback to Supabase IPv4 Pooler...");
+            
+            // Extract Project ID (e.g., db.abcdefg.supabase.co -> abcdefg)
+            var hostParts = builderNpgsql.Host.Split('.');
+            if (hostParts.Length >= 4 && hostParts[0] == "db" && hostParts[2] == "supabase" && hostParts[3] == "co")
+            {
+                var projectId = hostParts[1];
+                var originalUser = builderNpgsql.Username;
+                
+                // Try sa-east-1 (likely for this user) and us-east-1 (fallback)
+                var regions = new[] { "sa-east-1", "us-east-1" };
+                bool poolerFound = false;
+
+                foreach (var region in regions)
+                {
+                    var poolerHost = $"aws-0-{region}.pooler.supabase.com";
+                    try
+                    {
+                        Console.WriteLine($"--- DNS: Checking pooler {poolerHost}...");
+                        var poolerIps = await Dns.GetHostAddressesAsync(poolerHost);
+                        var poolerIpv4 = poolerIps.FirstOrDefault(ip => ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
+                        
+                        if (poolerIpv4 != null)
+                        {
+                            Console.WriteLine($"--- CONFIG: Switching to IPv4 Pooler: {poolerHost} ({poolerIpv4})");
+                            builderNpgsql.Host = poolerHost; 
+                            builderNpgsql.Port = 5432; // Session mode
+                            builderNpgsql.Username = $"{originalUser}.{projectId}";
+                            poolerFound = true;
+                            break;
+                        }
+                    }
+                    catch { /* Ignore DNS failures for regions */ }
+                }
+
+                if (!poolerFound)
+                {
+                     Console.WriteLine("--- DNS: Could not find a reachable IPv4 pooler.");
+                }
+            }
+            else
+            {
+                Console.WriteLine("--- DNS: Host format not recognized for automatic pooler fallback.");
+            }
         }
     }
     catch (Exception ex) { Console.WriteLine($"--- DNS: Failed to resolve host: {ex.Message}"); }
