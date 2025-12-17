@@ -15,11 +15,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 // Configure DbContext to use PostgreSQL
-var host = Environment.GetEnvironmentVariable("DB_HOST");
-var dbName = Environment.GetEnvironmentVariable("DB_NAME");
-var user = Environment.GetEnvironmentVariable("DB_USER");
-var password = Environment.GetEnvironmentVariable("DB_PASSWORD");
-var connectionString = $"Host={host};Database={dbName};Username={user};Password={password}";
+var connectionString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING");
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
