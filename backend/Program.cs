@@ -26,15 +26,60 @@ if (string.IsNullOrWhiteSpace(rawConnectionString))
     rawConnectionString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING");
 }
 
-// Clean up the string (remove quotes if present from env var) and handle null
+// Helper function to force IPv4 resolution for Render compatibility
+static string ResolveHostToIpv4(string connectionString)
+{
+    if (string.IsNullOrWhiteSpace(connectionString))
+    {
+        return connectionString;
+    }
+
+    try 
+    {
+        var builder = new NpgsqlConnectionStringBuilder(connectionString);
+        // If it's already an IP, skip
+        if (IPAddress.TryParse(builder.Host, out _)) return connectionString;
+
+        Console.WriteLine($"--- DNS: Resolving host {builder.Host} to IPv4...");
+        // Use Dns.GetHostAddresses to avoid IPv6 resolution issues
+        var addresses = Dns.GetHostAddresses(builder.Host!);
+        
+        // Find the first InterNetwork (IPv4) address
+        var ipv4 = addresses.FirstOrDefault(ip => ip.AddressFamily == AddressFamily.InterNetwork);
+
+        if (ipv4 != null)
+        {
+            Console.WriteLine($"--- DNS: Resolved to {ipv4}");
+            builder.Host = ipv4.ToString();
+            return builder.ToString();
+        }
+        Console.WriteLine("--- DNS: No IPv4 address found. Using original host.");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"--- DNS Error: {ex.Message}. Returning original connection string.");
+    }
+    return connectionString;
+}
+
+// Configure DbContext to use PostgreSQL
+var rawConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+// Fallback to DB_CONNECTION_STRING if not found (common in Render/Docker)
+if (string.IsNullOrWhiteSpace(rawConnectionString))
+{
+    rawConnectionString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING");
+}
+
 // Clean up the string (remove quotes if present from env var) and handle null
 rawConnectionString = (rawConnectionString ?? "").Trim().Trim('"').Trim('\'');
 
-// Support URI-style connection strings (common in Render/Supabase)
-if (!string.IsNullOrWhiteSpace(rawConnectionString) &&
-    (rawConnectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) ||
+// Support URI-style connection strings by converting them
+if (!string.IsNullOrWhiteSpace(rawConnectionString) && 
+    (rawConnectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) || 
      rawConnectionString.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase)))
 {
+    Console.WriteLine("--- Notice: Converting URI-style connection string to standard format.");
     try
     {
         var uri = new Uri(rawConnectionString);
@@ -44,23 +89,24 @@ if (!string.IsNullOrWhiteSpace(rawConnectionString) &&
             Host = uri.Host,
             Port = uri.Port > 0 ? uri.Port : 5432,
             Username = userInfo.Length > 0 ? userInfo[0] : "",
-            Password = userInfo.Length > 1 ? userInfo[1] : "",
-            Database = uri.AbsolutePath.TrimStart('/')
+            Password = userInfo.Length > 1 ? System.Net.WebUtility.UrlDecode(userInfo[1]) : "",
+            Database = uri.AbsolutePath.TrimStart('/'),
+            SslMode = SslMode.Prefer // Prefer SSL for external connections
         };
         rawConnectionString = npgsqlBuilder.ToString();
-        Console.WriteLine("Successfully converted URI connection string to Npgsql format.");
+        Console.WriteLine("--- Notice: Conversion successful.");
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"Warning: Failed to parse connection string as URI: {ex.Message}");
+        Console.WriteLine($"--- Warning: Failed to parse connection string URI: {ex.Message}");
     }
 }
 
-// Proactively check connection and fallback to pooler if needed (fixes IPv6 issues on Docker/Render)
-rawConnectionString = await TryFindWorkingConnection(rawConnectionString);
+
+var ipv4ConnectionString = ResolveHostToIpv4(rawConnectionString);
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(rawConnectionString, 
+    options.UseNpgsql(ipv4ConnectionString, 
                       o => o.EnableRetryOnFailure()));
 
 builder.Services.AddCors(options =>
