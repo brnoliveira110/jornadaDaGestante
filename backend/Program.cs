@@ -36,20 +36,27 @@ if (!string.IsNullOrEmpty(connectionString) &&
 
     try
     {
+        Console.WriteLine($"--- DNS: Resolving host {builderNpgsql.Host}...");
         var ipAddresses = await Dns.GetHostAddressesAsync(builderNpgsql.Host);
         var ipv4Address = ipAddresses.FirstOrDefault(ip => ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
         if (ipv4Address != null)
         {
+            Console.WriteLine($"--- DNS: Resolved to IPv4: {ipv4Address}");
             builderNpgsql.Host = ipv4Address.ToString();
         }
+        else
+        {
+            Console.WriteLine("--- DNS: No IPv4 address found.");
+        }
     }
-    catch { }
+    catch (Exception ex) { Console.WriteLine($"--- DNS: Failed to resolve host: {ex.Message}"); }
 
     connectionString = builderNpgsql.ToString();
+    Console.WriteLine($"--- CONFIG: Connection String Host set to: {builderNpgsql.Host}");
 }
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(connectionString));
+    options.UseNpgsql(connectionString, o => o.EnableRetryOnFailure()));
 
 builder.Services.AddCors(options =>
 {
