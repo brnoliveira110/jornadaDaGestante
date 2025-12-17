@@ -62,15 +62,6 @@ static string ResolveHostToIpv4(string connectionString)
     return connectionString;
 }
 
-// Configure DbContext to use PostgreSQL
-var rawConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-
-// Fallback to DB_CONNECTION_STRING if not found (common in Render/Docker)
-if (string.IsNullOrWhiteSpace(rawConnectionString))
-{
-    rawConnectionString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING");
-}
-
 // Clean up the string (remove quotes if present from env var) and handle null
 rawConnectionString = (rawConnectionString ?? "").Trim().Trim('"').Trim('\'');
 
