@@ -165,11 +165,11 @@ static string GetIpv4ConnectionString(string connectionString)
     var builder = new NpgsqlConnectionStringBuilder(connectionString);
     if (string.IsNullOrWhiteSpace(builder.Host)) return connectionString;
 
+    var isRender = Environment.GetEnvironmentVariable("RENDER") == "true";
+    
     // SCENARIO 1: We are on Render, using a Supabase direct connection string.
     // This is the known failure case. We MUST switch to the pooler and should not even attempt a DNS lookup.
-    var isRender = Environment.GetEnvironmentVariable("RENDER") == "true";
     bool isSupabaseDirectConnection = builder.Host.Contains("supabase.co") && builder.Port != 6543;
-
     if (isRender && isSupabaseDirectConnection)
     {
         Console.WriteLine("--- Platform: Detected Render environment with a Supabase direct connection. Attempting to switch to the IPv4 pooler automatically.");
@@ -220,33 +220,53 @@ static string GetIpv4ConnectionString(string connectionString)
         }
     }
 
-    // SCENARIO 2: We are NOT in the specific Render+Supabase failure case.
-    // Perform the normal DNS check just in case the environment doesn't support IPv6 for other reasons.
+    // SCENARIO 2: For any other case (including user-provided pooler strings), we must verify DNS.
+    // On Render, this check is now a mandatory pass/fail.
     try
     {
+        Console.WriteLine($"--- DNS: Verifying host '{builder.Host}' on port {builder.Port}.");
+        
         if (IPAddress.TryParse(builder.Host, out var ipAddr) && ipAddr.AddressFamily == AddressFamily.InterNetwork)
         {
-            return connectionString; // Already an IPv4 address.
+            Console.WriteLine($"--- DNS: Host '{builder.Host}' is already a valid IPv4 address: {ipAddr}");
+            return connectionString;
         }
 
-        Console.WriteLine($"--- DNS: Checking if host {builder.Host} resolves to IPv4...");
         var addresses = Dns.GetHostAddresses(builder.Host);
         var ipv4 = addresses.FirstOrDefault(ip => ip.AddressFamily == AddressFamily.InterNetwork);
         
         if (ipv4 != null)
         {
-            Console.WriteLine($"--- DNS: Resolved {builder.Host} to {ipv4}");
-            return connectionString; // Found an IPv4 address, we're good.
+            Console.WriteLine($"--- DNS: Successfully resolved host '{builder.Host}' to IPv4 address {ipv4}");
+            return connectionString;
         }
-        else
+        
+        // If we get here, no IPv4 address was found.
+        Console.WriteLine($"--- DNS ERROR: No IPv4 address was found for host '{builder.Host}'.");
+        if (isRender)
         {
-            Console.WriteLine("--- DNS: No IPv4 address found for host. Connection may fail if IPv6 is not supported.");
+            var error = "\n================================================================================\n" +
+                        $"FATAL ERROR: The database host '{builder.Host}' did not resolve to an IPv4 address.\n\n" +
+                        "Outbound connections on Render require an IPv4 address.\n\n" +
+                        "Please check the following:\n" +
+                        "1. Is the `DB_CONNECTION_STRING` environment variable set correctly in Render?\n" +
+                        "2. Is the hostname a valid, publicly accessible IPv4 host?\n" +
+                        "3. HINT: Supabase pooler hostnames typically start with `aws-0-`. Your current one is different. Please verify the hostname in your Supabase dashboard.\n" +
+                        "================================================================================\n";
+            throw new Exception(error);
         }
     }
     catch (Exception ex) 
     {
+         // If DNS lookup itself fails (e.g., host not found)
+         if (isRender)
+         {
+             throw new Exception($"FATAL: DNS lookup for host '{builder.Host}' failed in the Render environment. Please ensure the hostname is correct. Details: {ex.Message}", ex);
+         }
          Console.WriteLine($"--- DNS Check Warning: {ex.Message}");
     }
 
-    return connectionString; // Return the original string and let it try to connect.
+    // If not on Render, we return the string and let it try, as the environment might support IPv6.
+    Console.WriteLine("--- DNS: Check could not confirm an IPv4 address. Returning original connection string and letting the driver attempt connection.");
+    return connectionString;
 }
