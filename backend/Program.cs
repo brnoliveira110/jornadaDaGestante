@@ -172,7 +172,12 @@ static string GetIpv4ConnectionString(string connectionString)
             if (!string.IsNullOrEmpty(projectRef))
             {
                 Console.WriteLine("--- Supabase detected. Probing Regional Poolers for IPv4 connectivity...");
-                var regions = new[] { "sa-east-1", "us-east-1", "eu-central-1", "ap-southeast-1", "us-west-1", "eu-west-1" };
+                var regions = new[] { 
+                    "us-east-1", "us-east-2", "us-west-1", "us-west-2",
+                    "eu-central-1", "eu-west-1", "eu-west-2", "eu-west-3", "eu-north-1",
+                    "ap-southeast-1", "ap-southeast-2", "ap-northeast-1", "ap-northeast-2", "ap-south-1",
+                    "sa-east-1", "ca-central-1"
+                };
                 
                 foreach (var region in regions)
                 {
@@ -185,7 +190,7 @@ static string GetIpv4ConnectionString(string connectionString)
                             Host = poolerHost,
                             Port = 6543,
                             Pooling = false,
-                            Timeout = 2
+                            Timeout = 3
                         };
                         
                         // Fix username for pooler
