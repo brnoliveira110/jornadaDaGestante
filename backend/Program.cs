@@ -65,18 +65,21 @@ if (!string.IsNullOrWhiteSpace(connectionString) &&
 
 
 
-// Force Supabase Pooler Fallback/Check
+
+// Check for IPv4 compatibility (Render/Supabase support)
 try 
 {
     connectionString = GetIpv4ConnectionString(connectionString);
 }
 catch (Exception ex)
 {
-    Console.WriteLine($"FATAL: Failed to resolve valid connection string: {ex.Message}");
-    throw; // Stop startup if we can't get a valid connection
+    Console.WriteLine($"FATAL ERROR: {ex.Message}");
+    // We let it crash here so the user sees the logs immediately
+    throw; 
 }
 
 // Fix for Supabase Transaction Pooler (port 6543) which doesn't support PREPARE statements
+// This is critical when the user sets the pooler connection string manually.
 var finalBuilder = new NpgsqlConnectionStringBuilder(connectionString);
 if (finalBuilder.Port == 6543)
 {
@@ -144,9 +147,10 @@ static string GetIpv4ConnectionString(string connectionString)
 
     var builder = new NpgsqlConnectionStringBuilder(connectionString);
 
-    // 1. Check if Host resolves to IPv4 naturally
+    // 1. Check if Host resolves to IPv4 naturally or is already an IP
     try
     {
+        // If it's already an IP, we are good.
         if (IPAddress.TryParse(builder.Host, out var ipAddr))
         {
              if (ipAddr.AddressFamily == AddressFamily.InterNetwork) return connectionString;
@@ -155,15 +159,11 @@ static string GetIpv4ConnectionString(string connectionString)
         Console.WriteLine($"--- DNS: Checking if host {builder.Host} resolves to IPv4...");
         var addresses = Dns.GetHostAddresses(builder.Host!);
         var ipv4 = addresses.FirstOrDefault(ip => ip.AddressFamily == AddressFamily.InterNetwork);
+        
         if (ipv4 != null)
         {
             Console.WriteLine($"--- DNS: Resolved {builder.Host} to {ipv4}");
-            // Found strict IPv4, acceptable to use.
-            // However, if it IS Supabase, we still might prefer the pooler for connection stability 
-            // on strict IPv4 environments (like Render) but let's stick to simple resolution first.
-            // If direct connection fails later, we can't retry here easily. 
-            // But usually Dns.GetHostAddresses returns what is reachable. 
-            // For Supabase, direct IPv4 is NOT available usually, so this block likely won't hit for db.xxx.supabase.co
+            return connectionString;
         }
         else
         {
@@ -175,75 +175,23 @@ static string GetIpv4ConnectionString(string connectionString)
          Console.WriteLine($"--- DNS Check Warning: {ex.Message}");
     }
 
-    // 2. Specialized Supabase Handling
+    // 2. Identify if this is a Supabase IPv6-only host failure
     if (builder.Host != null && builder.Host.Contains("supabase.co"))
     {
-        string projectRef = "";
-        var parts = builder.Host.Split('.');
-        if (parts.Length >= 4 && parts[0] == "db")
-        {
-            projectRef = parts[1];
-        }
-
-        if (!string.IsNullOrEmpty(projectRef))
-        {
-            Console.WriteLine("--- Supabase detected. Probing Regional Poolers for IPv4 connectivity...");
-            
-            // Prioritized regions
-            var regions = new[] { 
-                "sa-east-1",     // São Paulo (Primary)
-                "us-east-1",     // N. Virginia
-                "eu-central-1",  // Frankfurt
-                "ap-southeast-1",// Singapore
-                "us-west-1", "eu-west-1", "eu-west-2", "eu-west-3"
-            };
-            
-            foreach (var region in regions)
-            {
-                var poolerHost = $"aws-0-{region}.pooler.supabase.com";
-                Console.WriteLine($"--- Probing: {poolerHost}...");
-
-                try 
-                {
-                    // Lightweight test builder
-                    var probeBuilder = new NpgsqlConnectionStringBuilder(connectionString)
-                    {
-                        Host = poolerHost,
-                        Port = 6543,
-                        Pooling = false,
-                        Timeout = 5
-                    };
-                    
-                    // Supabase Pooler requires [user].[project_ref] as username
-                    if (!probeBuilder.Username.Contains(projectRef))
-                    {
-                        probeBuilder.Username = $"{probeBuilder.Username}.{projectRef}";
-                    }
-
-                    using var conn = new NpgsqlConnection(probeBuilder.ToString());
-                    conn.Open();
-                    
-                    Console.WriteLine($"--- SUCCESS: Connected to {region} pooler!");
-                    
-                    // Apply to main builder to return the working config
-                    builder.Host = poolerHost;
-                    builder.Port = 6543;
-                    builder.Username = probeBuilder.Username;
-                    
-                    // Do NOT set MaxAutoPrepare here, done in main block
-                    return builder.ToString();
-                }
-                catch (Exception ex)
-                { 
-                    Console.WriteLine($"--- Probe failed for {region}: {ex.Message}");
-                }
-            }
-            
-            // If loop finishes, we failed to connect to ANY pooler.
-            // Throwing here is better than returning the broken IPv6 string, 
-            // because it gives a clear error message in the logs.
-            throw new Exception("Supabase Reachability Error: Could not connect to any IPv4 Regional Pooler. Render requires IPv4.");
-        }
+        // We failed to find an IPv4 address for a Supabase host.
+        // This is the specific Render vs Supabase Direct issue.
+        
+        var message = "\n================================================================================\n" +
+                      "FATAL ERROR: Supabase Direct Connection (IPv6) failed on this environment (Render).\n\n" +
+                      "SOLUTION: You must use the Supabase Transaction Pooler (IPv4) connection string.\n" +
+                      "1. Go to Supabase Dashboard -> Project Settings -> Database -> Connection String -> URI -> Copy 'Transaction Pooler' mode.\n" +
+                      "   It looks like: postgres://[user].[project]:[pass]@aws-0-[region].pooler.supabase.com:6543/postgres\n" +
+                      "2. Update your Render Environment Variable 'DB_CONNECTION_STRING' with this value.\n" +
+                      "3. Redeploy.\n" +
+                      "================================================================================\n";
+        
+        // Throwing explicitly to stop the noisy "Network Unreachable" stack traces
+        throw new Exception(message);
     }
 
     return connectionString;
