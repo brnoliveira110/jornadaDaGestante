@@ -1,8 +1,6 @@
 using backend.Data;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
-using System.Net;
-using System.Net.Sockets;
 using Npgsql;
 using System.IO;
 
@@ -20,26 +18,38 @@ builder.Services.AddSwaggerGen();
 
 // Configure DbContext to use PostgreSQL
 var rawConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
 // Fallback to DB_CONNECTION_STRING if not found (common in Render/Docker)
 if (string.IsNullOrWhiteSpace(rawConnectionString))
+if (string.IsNullOrWhiteSpace(connectionString))
 {
     rawConnectionString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING");
+    connectionString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING");
 }
 
 // Helper function to force IPv4 resolution for Render compatibility
 static string ResolveHostToIpv4(string connectionString)
+// Clean up the string (remove quotes if present from env var)
+connectionString = (connectionString ?? "").Trim().Trim('"').Trim('\'');
+
+// Helper to parse URI-style connection strings (postgres://...) commonly used in Render
+if (!string.IsNullOrWhiteSpace(connectionString) && 
+    (connectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) || 
+     connectionString.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase)))
 {
     if (string.IsNullOrWhiteSpace(connectionString))
         return connectionString;
 
     try 
+    try
     {
         var builder = new NpgsqlConnectionStringBuilder(connectionString);
         
         // 1. Try to resolve the current host to IPv4
         bool isIpv4 = false;
         if (IPAddress.TryParse(builder.Host, out var ipAddr))
+        if (Uri.TryCreate(connectionString, UriKind.Absolute, out var uri))
         {
              isIpv4 = ipAddr.AddressFamily == AddressFamily.InterNetwork;
         }
@@ -48,6 +58,7 @@ static string ResolveHostToIpv4(string connectionString)
         {
             Console.WriteLine($"--- DNS: Resolving host {builder.Host} to IPv4...");
             try 
+            var sb = new NpgsqlConnectionStringBuilder
             {
                 var addresses = Dns.GetHostAddresses(builder.Host!);
                 var ipv4 = addresses.FirstOrDefault(ip => ip.AddressFamily == AddressFamily.InterNetwork);
@@ -96,17 +107,28 @@ static string ResolveHostToIpv4(string connectionString)
                 "eu-west-1",
                 "eu-west-2",
                 "eu-west-3"
+                Host = uri.Host,
+                Port = uri.Port > 0 ? uri.Port : 5432,
+                Database = uri.AbsolutePath.Trim('/'),
+                SslMode = SslMode.Prefer
             };
 
             foreach (var region in regions)
+            if (!string.IsNullOrEmpty(uri.UserInfo))
             {
                 var poolerHost = $"aws-0-{region}.pooler.supabase.com";
                 Console.WriteLine($"--- Probing Pooler: {poolerHost} (Port 6543)...");
 
                 try
+                var parts = uri.UserInfo.Split(':', 2);
+                sb.Username = parts[0];
+                if (parts.Length > 1)
                 {
                     // Construct pooler connection string
                     var poolerBuilder = new NpgsqlConnectionStringBuilder(connectionString)
+                    var password = Uri.UnescapeDataString(parts[1]);
+                    // Fix common mistake: brackets around password in env vars
+                    if (password.StartsWith("[") && password.EndsWith("]"))
                     {
                         Host = poolerHost,
                         Port = 6543, // Pooler port for session/transaction
@@ -118,6 +140,8 @@ static string ResolveHostToIpv4(string connectionString)
                     if (!string.IsNullOrEmpty(poolerBuilder.Username) && !poolerBuilder.Username.Contains(projectRef))
                     {
                         poolerBuilder.Username = $"{poolerBuilder.Username}.{projectRef}";
+                        Console.WriteLine("--- Notice: Detected brackets in password. Removing them.");
+                        password = password.Substring(1, password.Length - 2);
                     }
 
                     using (var conn = new NpgsqlConnection(poolerBuilder.ToString()))
@@ -132,6 +156,7 @@ static string ResolveHostToIpv4(string connectionString)
                     poolerBuilder.Timeout = 15;
 
                     return poolerBuilder.ToString();
+                    sb.Password = password;
                 }
                 catch (Exception ex)
                 {
@@ -147,6 +172,7 @@ static string ResolveHostToIpv4(string connectionString)
                            "Please update your DB_CONNECTION_STRING in Render to use the 'Session Pooler' connection string.\n" +
                            "Format: 'postgres://[user].[project]:[pass]@aws-0-[region].pooler.supabase.com:6543/postgres'\n\n";
              Console.WriteLine(message);
+            connectionString = sb.ToString();
         }
         else 
         {
@@ -154,8 +180,10 @@ static string ResolveHostToIpv4(string connectionString)
         }
     }
     catch (Exception ex)
+    catch (Exception ex) 
     {
         Console.WriteLine($"--- DNS/Fallback Error: {ex.Message}. Returning original connection string.");
+        Console.WriteLine($"--- Warning: Failed to parse connection string URI: {ex.Message}");
     }
     return connectionString;
 }
@@ -262,6 +290,7 @@ var finalConnectionString = ResolveHostToIpv4(rawConnectionString);
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(finalConnectionString, 
+    options.UseNpgsql(connectionString, 
                       o => o.EnableRetryOnFailure()));
 
 builder.Services.AddCors(options =>
