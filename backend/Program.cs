@@ -53,7 +53,27 @@ static string ResolveHostToIpv4(string connectionString)
             builder.Host = ipv4.ToString();
             return builder.ToString();
         }
-        Console.WriteLine("--- DNS: No IPv4 address found. Using original host.");
+        
+        Console.WriteLine("--- DNS: No IPv4 address found.");
+        
+        // Check if this is a Supabase host
+        if (builder.Host != null && builder.Host.Contains("supabase.co"))
+        {
+             // Detailed error for the user
+             var message = $"\n\nFATAL ERROR: The host '{builder.Host}' resolved to IPv6 addresses only, but connection failed or IPv4 is required (e.g. Render).\n" +
+                           "Likely Solution: You are using the 'Direct Connection' string for Supabase which is IPv6-only.\n" +
+                           "Please update your DB_CONNECTION_STRING in Render to use the 'Session Pooler' or 'Transaction Pooler' connection string.\n" +
+                           "Go to Supabase Dashboard -> Your Project -> Connect -> Session Pooler.\n" +
+                           "It should look like: 'postgres://[user].[project]:[pass]@aws-0-[region].pooler.supabase.com:6543/postgres'\n\n";
+             Console.WriteLine(message);
+             // We return the original string to let the exception happen naturally down the line, 
+             // but we've logged the solution clearly.
+             // Actually, letting it fail with "Network unreachable" is fine if we logged the warning.
+        }
+        else 
+        {
+             Console.WriteLine("--- DNS: No IPv4 address found. Using original host.");
+        }
     }
     catch (Exception ex)
     {
