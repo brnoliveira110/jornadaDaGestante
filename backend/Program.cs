@@ -178,16 +178,27 @@ static string GetIpv4ConnectionString(string connectionString)
     // 2. Identify if this is a Supabase IPv6-only host failure
     if (builder.Host != null && builder.Host.Contains("supabase.co"))
     {
+        // AUTOMATIC FIX: Check for SUPABASE_REGION env var to switch to the pooler
+        var supabaseRegion = Environment.GetEnvironmentVariable("SUPABASE_REGION")?.Trim();
+        if (!string.IsNullOrWhiteSpace(supabaseRegion))
+        {
+            Console.WriteLine($"--- Config: Found SUPABASE_REGION '{supabaseRegion}'. Switching to Supabase Transaction Pooler.");
+            builder.Host = $"aws-0-{supabaseRegion}.pooler.supabase.com";
+            builder.Port = 6543;
+            return builder.ToString();
+        }
+
         // We failed to find an IPv4 address for a Supabase host.
         // This is the specific Render vs Supabase Direct issue.
-        
         var message = "\n================================================================================\n" +
                       "FATAL ERROR: Supabase Direct Connection (IPv6) failed on this environment (Render).\n\n" +
-                      "SOLUTION: You must use the Supabase Transaction Pooler (IPv4) connection string.\n" +
+                      "SOLUTION 1: Use the Supabase Transaction Pooler (IPv4) connection string.\n" +
                       "1. Go to Supabase Dashboard -> Project Settings -> Database -> Connection String -> URI -> Copy 'Transaction Pooler' mode.\n" +
                       "   It looks like: postgres://[user].[project]:[pass]@aws-0-[region].pooler.supabase.com:6543/postgres\n" +
-                      "2. Update your Render Environment Variable 'DB_CONNECTION_STRING' with this value.\n" +
-                      "3. Redeploy.\n" +
+                      "2. Update your Render Environment Variable 'DB_CONNECTION_STRING' with this value and redeploy.\n\n" +
+                      "SOLUTION 2: Set the SUPABASE_REGION environment variable.\n" +
+                      "1. Add an environment variable named 'SUPABASE_REGION' with your project's region (e.g., 'us-east-1').\n" +
+                      "2. Redeploy. The application will automatically build the correct pooler address.\n" +
                       "================================================================================\n";
         
         // Throwing explicitly to stop the noisy "Network Unreachable" stack traces
