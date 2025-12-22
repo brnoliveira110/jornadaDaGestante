@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using System.Net;
 using System.Net.Sockets;
 using Npgsql;
+using System.IO;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -30,45 +31,122 @@ if (string.IsNullOrWhiteSpace(rawConnectionString))
 static string ResolveHostToIpv4(string connectionString)
 {
     if (string.IsNullOrWhiteSpace(connectionString))
-    {
         return connectionString;
-    }
 
     try 
     {
         var builder = new NpgsqlConnectionStringBuilder(connectionString);
-        // If it's already an IP, skip
-        if (IPAddress.TryParse(builder.Host, out _)) return connectionString;
-
-        Console.WriteLine($"--- DNS: Resolving host {builder.Host} to IPv4...");
-        // Use Dns.GetHostAddresses to avoid IPv6 resolution issues
-        var addresses = Dns.GetHostAddresses(builder.Host!);
         
-        // Find the first InterNetwork (IPv4) address
-        var ipv4 = addresses.FirstOrDefault(ip => ip.AddressFamily == AddressFamily.InterNetwork);
-
-        if (ipv4 != null)
+        // 1. Try to resolve the current host to IPv4
+        bool isIpv4 = false;
+        if (IPAddress.TryParse(builder.Host, out var ipAddr))
         {
-            Console.WriteLine($"--- DNS: Resolved to {ipv4}");
-            builder.Host = ipv4.ToString();
-            return builder.ToString();
+             isIpv4 = ipAddr.AddressFamily == AddressFamily.InterNetwork;
         }
         
-        Console.WriteLine("--- DNS: No IPv4 address found.");
-        
-        // Check if this is a Supabase host
+        if (!isIpv4)
+        {
+            Console.WriteLine($"--- DNS: Resolving host {builder.Host} to IPv4...");
+            try 
+            {
+                var addresses = Dns.GetHostAddresses(builder.Host!);
+                var ipv4 = addresses.FirstOrDefault(ip => ip.AddressFamily == AddressFamily.InterNetwork);
+                if (ipv4 != null)
+                {
+                    Console.WriteLine($"--- DNS: Resolved to {ipv4}");
+                    builder.Host = ipv4.ToString();
+                    return builder.ToString();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"--- DNS Resolution failed: {ex.Message}");
+            }
+        }
+        else
+        {
+            return connectionString;
+        }
+
+        // 2. If IPv4 failed and it's Supabase, try Regional Poolers
         if (builder.Host != null && builder.Host.Contains("supabase.co"))
         {
-             // Detailed error for the user
-             var message = $"\n\nFATAL ERROR: The host '{builder.Host}' resolved to IPv6 addresses only, but connection failed or IPv4 is required (e.g. Render).\n" +
-                           "Likely Solution: You are using the 'Direct Connection' string for Supabase which is IPv6-only.\n" +
-                           "Please update your DB_CONNECTION_STRING in Render to use the 'Session Pooler' or 'Transaction Pooler' connection string.\n" +
-                           "Go to Supabase Dashboard -> Your Project -> Connect -> Session Pooler.\n" +
-                           "It should look like: 'postgres://[user].[project]:[pass]@aws-0-[region].pooler.supabase.com:6543/postgres'\n\n";
+            Console.WriteLine("--- DNS: No IPv4 address found for Supabase host. Attempting fallback to Regional Poolers (IPv4 compatible)...");
+
+            string projectRef = "";
+            var parts = builder.Host.Split('.');
+            if (parts.Length >= 4 && parts[0] == "db")
+            {
+                // Format: db.[ref].supabase.co
+                projectRef = parts[1];
+            }
+            else
+            {
+                Console.WriteLine("--- Could not extract Project Ref from host. Returning original.");
+                return connectionString;
+            }
+
+            // Common Supabase regions to probe
+            var regions = new[] { 
+                "sa-east-1",  // São Paulo (Prioritized for this user)
+                "us-east-1",  // N. Virginia (Common default)
+                "eu-central-1", // Frankfurt
+                "ap-southeast-1", // Singapore
+                "us-west-1",
+                "eu-west-1",
+                "eu-west-2",
+                "eu-west-3"
+            };
+
+            foreach (var region in regions)
+            {
+                var poolerHost = $"aws-0-{region}.pooler.supabase.com";
+                Console.WriteLine($"--- Probing Pooler: {poolerHost} (Port 6543)...");
+
+                try
+                {
+                    // Construct pooler connection string
+                    var poolerBuilder = new NpgsqlConnectionStringBuilder(connectionString)
+                    {
+                        Host = poolerHost,
+                        Port = 6543, // Pooler port for session/transaction
+                        Pooling = false, // Disable pooling for the probe
+                        Timeout = 3, // Fast fail
+                    };
+
+                    // Pooler username must be [user].[project_ref] if not already
+                    if (!string.IsNullOrEmpty(poolerBuilder.Username) && !poolerBuilder.Username.Contains(projectRef))
+                    {
+                        poolerBuilder.Username = $"{poolerBuilder.Username}.{projectRef}";
+                    }
+
+                    using (var conn = new NpgsqlConnection(poolerBuilder.ToString()))
+                    {
+                        conn.Open(); // Will throw if fails
+                    }
+
+                    Console.WriteLine($"--- SUCCESS: Connected to {region} pooler!");
+                    
+                    // Return the working connection string with correct settings
+                    poolerBuilder.Pooling = new NpgsqlConnectionStringBuilder(connectionString).Pooling; // Restore original pooling setting
+                    poolerBuilder.Timeout = 15;
+
+                    return poolerBuilder.ToString();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"--- Probe failed for {region}: {ex.Message}");
+                }
+            }
+            
+            // If we get here, all probes failed.
+            Console.WriteLine("--- FATAL: Could not connect to any Supabase Regional Pooler. Please check your DB credentials.");
+            
+            // Print the original helper message as a last resort
+             var message = $"\n\nFATAL ERROR: The host '{builder.Host}' resolved to IPv6 addresses only.\n" +
+                           "Please update your DB_CONNECTION_STRING in Render to use the 'Session Pooler' connection string.\n" +
+                           "Format: 'postgres://[user].[project]:[pass]@aws-0-[region].pooler.supabase.com:6543/postgres'\n\n";
              Console.WriteLine(message);
-             // We return the original string to let the exception happen naturally down the line, 
-             // but we've logged the solution clearly.
-             // Actually, letting it fail with "Network unreachable" is fine if we logged the warning.
         }
         else 
         {
@@ -77,7 +155,7 @@ static string ResolveHostToIpv4(string connectionString)
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"--- DNS Error: {ex.Message}. Returning original connection string.");
+        Console.WriteLine($"--- DNS/Fallback Error: {ex.Message}. Returning original connection string.");
     }
     return connectionString;
 }
@@ -220,6 +298,12 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("AllowAll");
+// Ensure wwwroot exists to avoid StaticFileMiddleware warnings
+var wwwroot = Path.Combine(app.Environment.ContentRootPath, "wwwroot");
+if (!Directory.Exists(wwwroot))
+{
+    Directory.CreateDirectory(wwwroot);
+}
 app.UseStaticFiles();
 app.UseAuthorization();
 
