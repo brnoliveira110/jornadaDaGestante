@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
 using Npgsql;
 using System.IO;
+using System.Net;
+using System.Net.Sockets;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -37,7 +39,7 @@ if (!string.IsNullOrWhiteSpace(connectionString) &&
     {
         var uri = new Uri(connectionString);
         var userInfo = uri.UserInfo.Split(':');
-        var builder = new NpgsqlConnectionStringBuilder
+        var npgsqlBuilder = new NpgsqlConnectionStringBuilder
         {
             Host = uri.Host,
             Port = uri.Port > 0 ? uri.Port : 5432,
@@ -48,18 +50,21 @@ if (!string.IsNullOrWhiteSpace(connectionString) &&
         };
 
         // Fix common mistake: brackets around password in env vars
-        if (builder.Password != null && builder.Password.StartsWith("[") && builder.Password.EndsWith("]"))
+        if (npgsqlBuilder.Password != null && npgsqlBuilder.Password.StartsWith("[") && npgsqlBuilder.Password.EndsWith("]"))
         {
-            builder.Password = builder.Password.Substring(1, builder.Password.Length - 2);
+            npgsqlBuilder.Password = npgsqlBuilder.Password.Substring(1, npgsqlBuilder.Password.Length - 2);
         }
 
-        connectionString = builder.ToString();
+        connectionString = npgsqlBuilder.ToString();
     }
     catch (Exception ex)
     {
          Console.WriteLine($"--- Warning: Failed to parse connection string URI: {ex.Message}");
     }
 }
+
+
+connectionString = GetIpv4ConnectionString(connectionString);
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString, 
@@ -111,3 +116,109 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+// Helper to ensure IPv4 connection (Render does not support IPv6 for outbound yet)
+static string GetIpv4ConnectionString(string connectionString)
+{
+    if (string.IsNullOrWhiteSpace(connectionString)) return connectionString;
+
+    try
+    {
+        var builder = new NpgsqlConnectionStringBuilder(connectionString);
+        
+        // 1. Check if Host resolves to IPv4
+        bool isIpv4 = false;
+        if (IPAddress.TryParse(builder.Host, out var ipAddr))
+        {
+             isIpv4 = ipAddr.AddressFamily == AddressFamily.InterNetwork;
+        }
+
+        if (isIpv4) return connectionString;
+
+        Console.WriteLine($"--- DNS: Checking if host {builder.Host} resolves to IPv4...");
+        try 
+        {
+            var addresses = Dns.GetHostAddresses(builder.Host!);
+            var ipv4 = addresses.FirstOrDefault(ip => ip.AddressFamily == AddressFamily.InterNetwork);
+            if (ipv4 != null)
+            {
+                // Found an IPv4 address, strictly speaking we could use it, 
+                // but for Supabase it's better to use the Pooler if it's the direct host.
+                // However, let's just return if we found an IPv4 to be safe.
+                Console.WriteLine($"--- DNS: Resolved {builder.Host} to {ipv4}");
+                // If it's NOT a supabase host, or if it is but has an A record, we might be fine.
+                // But generally Supabase direct is IPv6 only.
+            }
+            else
+            {
+                Console.WriteLine("--- DNS: No IPv4 address found.");
+            }
+        }
+        catch {}
+
+        // 2. Specialized Supabase Handling
+        if (builder.Host != null && builder.Host.Contains("supabase.co"))
+        {
+            // Check if we are potentially on the IPv6 direct connection
+            // We'll aggressively search for a pooler content if we suspect issues.
+            
+            string projectRef = "";
+            var parts = builder.Host.Split('.');
+            if (parts.Length >= 4 && parts[0] == "db")
+            {
+                projectRef = parts[1];
+            }
+
+            if (!string.IsNullOrEmpty(projectRef))
+            {
+                Console.WriteLine("--- Supabase detected. Probing Regional Poolers for IPv4 connectivity...");
+                var regions = new[] { "sa-east-1", "us-east-1", "eu-central-1", "ap-southeast-1", "us-west-1", "eu-west-1" };
+                
+                foreach (var region in regions)
+                {
+                    var poolerHost = $"aws-0-{region}.pooler.supabase.com";
+                    try 
+                    {
+                        // Lightweight test
+                        var probeBuilder = new NpgsqlConnectionStringBuilder(connectionString)
+                        {
+                            Host = poolerHost,
+                            Port = 6543,
+                            Pooling = false,
+                            Timeout = 2
+                        };
+                        
+                        // Fix username for pooler
+                        if (!probeBuilder.Username.Contains(projectRef))
+                        {
+                            probeBuilder.Username = $"{probeBuilder.Username}.{projectRef}";
+                        }
+
+                        using var conn = new NpgsqlConnection(probeBuilder.ToString());
+                        conn.Open();
+                        
+                        Console.WriteLine($"--- SUCCESS: Connected to {region} pooler!");
+                        
+                        // Apply to main builder
+                        builder.Host = poolerHost;
+                        builder.Port = 6543;
+                        builder.Username = probeBuilder.Username;
+                        return builder.ToString();
+                    }
+                    catch 
+                    { 
+                        // Continue probing
+                    }
+                }
+            }
+            
+            Console.WriteLine("--- WARNING: Could not auto-connect to Supabase Pooler. Ensure DB_CONNECTION_STRING is correct.");
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"--- Warning during IPv4 check: {ex.Message}");
+    }
+
+    return connectionString;
+}
