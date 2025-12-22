@@ -73,23 +73,89 @@ if (!string.IsNullOrWhiteSpace(rawConnectionString) &&
     Console.WriteLine("--- Notice: Converting URI-style connection string to standard format.");
     try
     {
-        var uri = new Uri(rawConnectionString);
-        var userInfo = uri.UserInfo.Split(':');
+        // Use a manual parser to be more lenient with formatting (e.g., handling brackets in password)
+        var tempUri = rawConnectionString;
+        var schemeEnd = tempUri.IndexOf("://");
+        if (schemeEnd > 0) tempUri = tempUri.Substring(schemeEnd + 3);
+
+        string dbPart = "postgres"; // default
+        string hostPart = "";
+        int port = 5432;
+        string username = "";
+        string password = "";
+
+        // Extract Database
+        var slashIndex = tempUri.IndexOf('/');
+        if (slashIndex >= 0)
+        {
+            var dbSegment = tempUri.Substring(slashIndex + 1);
+            var qMark = dbSegment.IndexOf('?');
+            dbPart = qMark > 0 ? dbSegment.Substring(0, qMark) : dbSegment;
+            tempUri = tempUri.Substring(0, slashIndex);
+        }
+
+        // Extract UserInfo and Host
+        var atIndex = tempUri.LastIndexOf('@');
+        if (atIndex > 0)
+        {
+            var userInfo = tempUri.Substring(0, atIndex);
+            hostPart = tempUri.Substring(atIndex + 1);
+
+            // Parse UserInfo
+            var colonIndex = userInfo.IndexOf(':');
+            if (colonIndex >= 0)
+            {
+                username = userInfo.Substring(0, colonIndex);
+                password = userInfo.Substring(colonIndex + 1);
+                
+                // Fix common mistake: brackets around password
+                if (password.StartsWith("[") && password.EndsWith("]"))
+                {
+                    Console.WriteLine("--- Notice: Detected brackets in password. Removing them.");
+                    password = password.Substring(1, password.Length - 2);
+                }
+                
+                // Decode password
+                password = System.Net.WebUtility.UrlDecode(password);
+            }
+            else
+            {
+                username = userInfo;
+            }
+        }
+        else
+        {
+            hostPart = tempUri; // No auth info
+        }
+
+        // Parse Host/Port
+        var portColon = hostPart.LastIndexOf(':');
+        // Check if colon is for port (not inside IPv6 brackets)
+        var endBracket = hostPart.LastIndexOf(']');
+        if (portColon > 0 && portColon > endBracket)
+        {
+             if (int.TryParse(hostPart.Substring(portColon + 1), out int p))
+             {
+                 port = p;
+                 hostPart = hostPart.Substring(0, portColon);
+             }
+        }
+
         var npgsqlBuilder = new NpgsqlConnectionStringBuilder
         {
-            Host = uri.Host,
-            Port = uri.Port > 0 ? uri.Port : 5432,
-            Username = userInfo.Length > 0 ? userInfo[0] : "",
-            Password = userInfo.Length > 1 ? System.Net.WebUtility.UrlDecode(userInfo[1]) : "",
-            Database = uri.AbsolutePath.TrimStart('/'),
-            SslMode = SslMode.Prefer // Prefer SSL for external connections
+            Host = hostPart,
+            Port = port,
+            Username = username,
+            Password = password,
+            Database = dbPart,
+            SslMode = SslMode.Prefer 
         };
         rawConnectionString = npgsqlBuilder.ToString();
         Console.WriteLine("--- Notice: Conversion successful.");
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"--- Warning: Failed to parse connection string URI: {ex.Message}");
+         Console.WriteLine($"--- Warning: Failed to parse connection string URI: {ex.Message}");
     }
 }
 
