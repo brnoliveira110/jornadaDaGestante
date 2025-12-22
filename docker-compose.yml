@@ -1,36 +1,6 @@
 version: '3.8'
 
 services:
-  db:
-    image: postgres:15
-    container_name: gestante-db
-    environment:
-      - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=gestanteapp
-    volumes:
-      - postgres_data:/var/lib/postgresql/data/
-    ports:
-      - "5432:5432" # Exponha para debugging, pode ser removido depois
-    restart: unless-stopped
-
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: gestante-backend
-    ports:
-      - "5167:8080"
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - DB_HOST=db
-      - DB_NAME=gestanteapp
-      - DB_USER=user
-      - DB_PASSWORD=password
-    depends_on:
-      - db
-    restart: always
-
   frontend:
     build:
       context: ./frontend
@@ -41,6 +11,3 @@ services:
     depends_on:
       - backend
     restart: always
-
-volumes:
-  postgres_data:
