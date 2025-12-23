@@ -23,7 +23,19 @@ var host = Environment.GetEnvironmentVariable("DB_HOST");
 
 if (!string.IsNullOrEmpty(databaseUrl))
 {
-    connectionString = databaseUrl;
+    // Parse DATABASE_URL (postgres://user:pass@host:port/db) to Connection String
+    try 
+    {
+        var uri = new Uri(databaseUrl);
+        var userInfo = uri.UserInfo.Split(':');
+        var db = uri.AbsolutePath.TrimStart('/');
+        connectionString = $"Host={uri.Host};Port={uri.Port};Database={db};Username={userInfo[0]};Password={userInfo[1]};SSL Mode=Require;Trust Server Certificate=true";
+    }
+    catch
+    {
+        // Fallback or use raw if parsing fails
+        connectionString = databaseUrl;
+    }
 }
 else if (!string.IsNullOrEmpty(host))
 {
