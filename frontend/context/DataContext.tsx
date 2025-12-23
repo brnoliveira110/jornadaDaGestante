@@ -111,7 +111,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const users = await api.getUsers();
       // Simple logic: find by name
-      const found = users.find(u => u.name.toLowerCase() === username.toLowerCase() || u.name.toLowerCase().includes(username.toLowerCase()));
+      const found = users.find(u =>
+        u.name.trim().toLowerCase() === username.trim().toLowerCase() ||
+        u.name.trim().toLowerCase().includes(username.trim().toLowerCase())
+      );
 
       if (found) {
         setCurrentUser(found);
