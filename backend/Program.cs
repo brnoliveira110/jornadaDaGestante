@@ -16,9 +16,16 @@ builder.Services.AddSwaggerGen();
 
 // Configure DbContext
 // Prioritize Environment Variables for Docker/Render, fallback to appsettings
+// Prioritize Environment Variables for Docker/Render (DATABASE_URL or specific parts)
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
 var host = Environment.GetEnvironmentVariable("DB_HOST");
-if (!string.IsNullOrEmpty(host))
+
+if (!string.IsNullOrEmpty(databaseUrl))
+{
+    connectionString = databaseUrl;
+}
+else if (!string.IsNullOrEmpty(host))
 {
     var dbName = Environment.GetEnvironmentVariable("DB_NAME");
     var user = Environment.GetEnvironmentVariable("DB_USER");
