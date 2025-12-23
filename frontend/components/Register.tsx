@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { Baby, ArrowRight, User, Mail, Lock, ArrowLeft, Heart } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
-import PregnancySetup from '../pages/SetupPage';
+import { PregnancySetupForm } from '../pages/SetupPage';
 
 interface RegisterProps {
   onBack: () => void;
@@ -170,7 +170,7 @@ const Register: React.FC<RegisterProps> = ({ onBack }) => {
       </div>
 
       <Dialog open={showSetupModal} onOpenChange={handleSetupComplete}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto w-full">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto w-full bg-white">
           <DialogHeader>
             <DialogTitle>Bem-vinda, mamãe! 🎉</DialogTitle>
             <DialogDescription>
@@ -178,7 +178,7 @@ const Register: React.FC<RegisterProps> = ({ onBack }) => {
             </DialogDescription>
           </DialogHeader>
           <div className="mt-4">
-            <PregnancySetup onSave={handleSetupComplete} />
+            <PregnancySetupForm onSave={handleSetupComplete} className="space-y-6" />
           </div>
           <div className="flex justify-end mt-4">
             <button onClick={handleSetupComplete} className="text-sm text-slate-400 hover:text-slate-600">Pular por enquanto</button>

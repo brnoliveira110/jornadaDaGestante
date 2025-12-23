@@ -36,6 +36,7 @@ export interface PregnancyData {
   spouseBloodType?: BloodType;
   weightGoalMax: number;
   weightGoalMin: number;
+  theme: 'NEUTRAL' | 'BOY' | 'GIRL';
 }
 
 // 3. Schema de Consultas (Prontuário)
@@ -102,7 +103,8 @@ export interface Alert {
 // 7. Schema de Dicas
 export interface Tip {
   id: string;
-  month: number;
+  minWeek: number;
+  maxWeek: number;
   category: string;
   title: string;
   content: string;

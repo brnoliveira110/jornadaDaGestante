@@ -25,7 +25,8 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({ consultations }) => {
     if (!weight || !ig) return;
 
     const newConsultation: Consultation = {
-      id: Math.random().toString(),
+      id: crypto.randomUUID(),
+      patientId: '',
       date: new Date().toISOString(),
       gestationalAgeWeeks: parseInt(ig),
       currentWeight: parseFloat(weight),
@@ -53,9 +54,9 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({ consultations }) => {
             <FileText className="w-5 h-5 text-rose-500" />
             Histórico de Consultas & Peso
           </h3>
-          <button 
+          <button
             onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 bg-rose-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-rose-600 transition-colors shadow-sm"
+            className="flex items-center gap-2 bg-primary-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-600 transition-colors shadow-sm"
           >
             <Plus className="w-4 h-4" />
             Registrar Dados
@@ -63,7 +64,38 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({ consultations }) => {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
+          {/* Mobile Cards */}
+          <div className="md:hidden space-y-3 mb-4">
+            {consultations.map((c) => (
+              <div key={c.id} className="bg-slate-50 p-4 rounded-xl border border-slate-100 shadow-sm">
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <div className="font-bold text-slate-800 text-base">{formatDate(c.date)}</div>
+                    <div className="text-xs text-slate-500 font-medium">{c.gestationalAgeWeeks} semanas</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-bold text-rose-600 text-base">{c.currentWeight ? `${c.currentWeight} kg` : '-'}</div>
+                    <div className="text-xs text-slate-400">{c.bloodPressure || 'PA --/--'}</div>
+                  </div>
+                </div>
+                {c.notes && (
+                  <div className="mb-3 text-sm text-slate-600 italic bg-white p-2 rounded border border-slate-100">
+                    "{c.notes}"
+                  </div>
+                )}
+                <button
+                  onClick={() => toggleConsultationStatus(c.id)}
+                  className={`w-full py-2.5 rounded-lg flex items-center justify-center gap-2 text-sm font-bold transition-all
+                        ${c.status === 'COMPLETED' ? 'bg-green-100 text-green-700' : 'bg-white border border-slate-200 text-slate-400 hover:bg-slate-50'}`}
+                >
+                  {c.status === 'COMPLETED' ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
+                  {c.status === 'COMPLETED' ? 'Consulta Realizada' : 'Marcar como Feita'}
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <table className="w-full text-sm text-left hidden md:table">
             <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
               <tr>
                 <th className="px-6 py-4 w-10">Feito</th>
@@ -78,7 +110,7 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({ consultations }) => {
               {consultations.map((consultation) => (
                 <tr key={consultation.id} className={`hover:bg-slate-50 transition-colors ${consultation.status === 'SCHEDULED' ? 'bg-slate-50/50' : ''}`}>
                   <td className="px-6 py-4">
-                    <button 
+                    <button
                       onClick={() => toggleConsultationStatus(consultation.id)}
                       className={`transition-colors ${consultation.status === 'COMPLETED' ? 'text-teal-600' : 'text-slate-300 hover:text-teal-500'}`}
                       title={consultation.status === 'COMPLETED' ? 'Realizada' : 'Marcar como realizada'}
@@ -117,11 +149,11 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({ consultations }) => {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <form onSubmit={handleSave} className="p-6 space-y-4">
               <p className="text-sm text-slate-500">Registre os dados obtidos na sua consulta médica para manter seu histórico atualizado.</p>
-              
-              <div className="grid grid-cols-2 gap-4">
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 mb-1">Idade Gestacional (Semanas)*</label>
                   <input required type="number" value={ig} onChange={e => setIg(e.target.value)} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-rose-500 outline-none" placeholder="Ex: 24" />
@@ -139,16 +171,16 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({ consultations }) => {
 
               <div>
                 <label className="block text-xs font-bold text-slate-500 mb-1">Anotações Pessoais</label>
-                <textarea 
-                  value={notes} 
-                  onChange={e => setNotes(e.target.value)} 
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-rose-500 outline-none h-24 resize-none" 
+                <textarea
+                  value={notes}
+                  onChange={e => setNotes(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-rose-500 outline-none h-24 resize-none"
                   placeholder="O que o médico disse? Como você se sentiu?"
                 ></textarea>
               </div>
 
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 className="w-full bg-rose-500 text-white py-3 rounded-xl font-bold hover:bg-rose-600 transition-colors flex items-center justify-center gap-2"
               >
                 <Save className="w-4 h-4" /> Salvar no Diário

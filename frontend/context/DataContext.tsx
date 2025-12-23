@@ -7,6 +7,7 @@ import {
   MOCK_VACCINES
 } from '../constants';
 import { api } from '../services/api';
+import Cookies from 'js-cookie';
 
 // Interfaces do Contexto Simplificadas
 interface DataContextType {
@@ -26,10 +27,10 @@ interface DataContextType {
   // Ações de Autogestão
   updatePregnancyData: (data: Partial<PregnancyData>) => Promise<void>;
   addConsultation: (consultation: Consultation) => Promise<void>;
-  addExamRequest: (name: string) => Promise<void>;
+  addExamRequest: (name: string, date?: string) => Promise<void>;
   addVaccine: (vaccine: Vaccine) => Promise<void>;
   addExamResult: (exam: ExamResult) => Promise<void>;
-  uploadExamResult: (file: File, name: string) => Promise<void>;
+
   markAlertRead: (id: string) => Promise<void>;
 
   // Toggles
@@ -42,6 +43,9 @@ interface DataContextType {
   addPost: (content: string) => Promise<void>;
   addComment: (postId: string, content: string) => Promise<void>;
   likePost: (postId: string) => Promise<void>;
+
+  // Notificações
+  requestNotificationPermission: () => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -62,10 +66,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // We'll keep static INITIAL_TIPS for now but fetch others.
 
   useEffect(() => {
+    // 1. Tenta recuperar sessão salva dos Cookies
+    const savedUser = Cookies.get('currentUser');
+    if (savedUser) {
+      try {
+        const parsed = JSON.parse(savedUser);
+        setCurrentUser(parsed);
+      } catch (e) {
+        console.error("Erro ao recuperar sessão", e);
+        Cookies.remove('currentUser');
+      }
+    }
+  }, []);
+
+  useEffect(() => {
     if (currentUser) {
       loadUserData(currentUser.id);
     } else {
-      // Clear data
+      // Clear data regardless of method
       setPregnancyData(null);
       setConsultations([]);
       setVaccines([]);
@@ -118,6 +136,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (found) {
         setCurrentUser(found);
+        // Salva nos Cookies por 7 dias
+        Cookies.set('currentUser', JSON.stringify(found), { expires: 7, sameSite: 'Strict' });
         return true;
       }
       return false;
@@ -154,9 +174,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       await api.createPregnancyData(initialPregnancyData);
 
-
-
       setCurrentUser(createdUser);
+      // Salva nos Cookies por 7 dias
+      Cookies.set('currentUser', JSON.stringify(createdUser), { expires: 7, sameSite: 'Strict' });
       return true; // Success
     } catch (e) {
       console.error("Register failed", e);
@@ -166,6 +186,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     setCurrentUser(null);
+    Cookies.remove('currentUser');
   };
 
   // --- Actions ---
@@ -183,13 +204,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setConsultations([...consultations, saved]);
   };
 
-  const addExamRequest = async (name: string) => {
+  const addExamRequest = async (name: string, date?: string) => {
     if (!currentUser) return;
+    // ensure date is ISO string if provided, else use current time
+    let validDate = new Date().toISOString();
+    if (date) {
+      try {
+        validDate = new Date(date).toISOString();
+      } catch (e) { console.error('Invalid date, using now'); }
+    }
+
     const newExam: ExamResult = {
       id: crypto.randomUUID(),
       patientId: currentUser.id,
       name,
-      date: new Date().toISOString(),
+      date: validDate,
       type: 'PDF' as any,
       status: 'REQUESTED' as any,
       doctorName: 'Autogestão',
@@ -212,16 +241,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setExams([...exams, saved]);
   };
 
-  const uploadExamResult = async (file: File, name: string) => {
-    if (!currentUser) return;
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('patientId', currentUser.id);
-    formData.append('name', name);
 
-    const saved = await api.uploadExam(formData);
-    setExams([...exams, saved]);
-  };
 
   const toggleConsultationStatus = async (id: string) => {
     const consultation = consultations.find(c => c.id === id);
@@ -306,6 +326,48 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setPosts(posts.map(p => p.id === postId ? { ...p, likes: p.likes + 1 } : p));
   };
 
+  // --- Notificações ---
+  const requestNotificationPermission = async () => {
+    if (!('Notification' in window)) {
+      alert("Este navegador não suporta notificações.");
+      return;
+    }
+    const permission = await Notification.requestPermission();
+    if (permission === 'granted') {
+      new Notification("Jornada da Gestante", { body: "Notificações ativadas! Te avisaremos sobre seus exames." });
+    }
+  };
+
+  useEffect(() => {
+    const checkReminders = () => {
+      if (!exams || exams.length === 0) return;
+
+      exams.forEach(exam => {
+        if (exam.status === 'REQUESTED') {
+          const examDate = new Date(exam.date);
+          const today = new Date();
+          const diffTime = examDate.getTime() - today.getTime();
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+          if (diffDays >= 0 && diffDays <= 2) {
+            const title = "Lembrete de Exame";
+            const body = `O exame ${exam.name} está agendado para ${new Date(exam.date).toLocaleDateString()}.`;
+
+            if (Notification.permission === 'granted') {
+              // Tag prevents duplicate notifications
+              new Notification(title, { body, tag: `exam-${exam.id}` });
+            }
+          }
+        }
+      });
+    };
+
+    // Check on load and periodically
+    checkReminders();
+    const interval = setInterval(checkReminders, 4 * 60 * 60 * 1000); // 4 hours
+    return () => clearInterval(interval);
+  }, [exams]);
+
   return (
     <DataContext.Provider value={{
       currentUser, login, register, logout,
@@ -315,10 +377,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       exams,
       alerts, tips, posts,
       updatePregnancyData,
-      addConsultation, addExamRequest, addVaccine, addExamResult, uploadExamResult,
+      addConsultation, addExamRequest, addVaccine, addExamResult,
       markAlertRead,
       toggleConsultationStatus, toggleVaccineStatus, toggleExamRealized,
-      addPost, addComment, likePost
+      addPost, addComment, likePost, requestNotificationPermission
     }}>
       {children}
     </DataContext.Provider>

@@ -10,9 +10,7 @@ import ExamsPageWrapper from '../pages/ExamsPage';
 import VaccinesPage from '../pages/VaccinesPage';
 import NutritionalCurvePage from '../pages/NutritionalCurvePage';
 import TipsPage from '../pages/TipsPage';
-import CommunityPage from '../pages/CommunityPage';
 import SetupPage from '../pages/SetupPage';
-import NotificationsPageWrapper from '../pages/NotificationsPage';
 import Login from '../components/Login';
 import Register from '../components/Register';
 
@@ -49,9 +47,7 @@ const ExamsWrapper = () => {
     return <ExamsPageWrapper userRole={currentUser.role} exams={[]} />;
 };
 
-const NotificationsWrapper = () => {
-    return <NotificationsPageWrapper fullPage />;
-};
+
 
 
 // Auth Guard
@@ -99,16 +95,8 @@ export const router = createBrowserRouter([
         element: <ProtectedRoute><TipsPage /></ProtectedRoute>
     },
     {
-        path: "/community",
-        element: <ProtectedRoute><CommunityPage /></ProtectedRoute>
-    },
-    {
         path: "/setup",
         element: <ProtectedRoute><SetupPage /></ProtectedRoute>
-    },
-    {
-        path: "/notifications",
-        element: <ProtectedRoute><NotificationsWrapper /></ProtectedRoute>
     }
 ]);
 

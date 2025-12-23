@@ -47,15 +47,7 @@ export const api = {
     getExams: (patientId: string) => fetchJson<ExamResult[]>(`/exams/patient/${patientId}`),
 
     createExam: (data: ExamResult) => fetchJson<ExamResult>('/exams', { method: 'POST', body: JSON.stringify(data) }),
-    uploadExam: (formData: FormData) => {
-        return fetch(`${API_URL}/exams/upload`, {
-            method: 'POST',
-            body: formData, // fetch handles multipart automatically if content-type header is NOT set
-        }).then(res => {
-            if (!res.ok) throw new Error('Upload failed');
-            return res.json();
-        });
-    },
+
     updateExam: (data: ExamResult) => fetchJson<void>(`/exams/${data.id}`, { method: 'PUT', body: JSON.stringify(data) }),
 
     // Alerts

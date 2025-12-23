@@ -24,6 +24,14 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const location = useLocation();
 
+    React.useEffect(() => {
+        if (pregnancyData?.theme) {
+            document.documentElement.setAttribute('data-theme', pregnancyData.theme);
+        } else {
+            document.documentElement.removeAttribute('data-theme');
+        }
+    }, [pregnancyData?.theme]);
+
     const unreadAlerts = alerts.filter(a => !a.read).length;
     const currentWeek = pregnancyData?.dum ? calculateGestationalAge(pregnancyData.dum) : 0;
 
@@ -38,14 +46,14 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
                 className={`
             w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium text-sm relative
             ${isActive
-                        ? 'bg-rose-500 text-white shadow-md shadow-rose-200'
+                        ? 'bg-primary-500 text-white shadow-md shadow-primary-200'
                         : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'}
         `}
             >
                 <Icon className="w-5 h-5" />
                 <span>{label}</span>
                 {badge && badge > 0 && (
-                    <span className="absolute right-3 top-3 bg-teal-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                    <span className="absolute right-3 top-3 bg-secondary-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
                         {badge}
                     </span>
                 )}
@@ -71,7 +79,7 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
       `}>
                 <div className="h-full flex flex-col p-6">
                     <div className="flex items-center gap-3 mb-10 px-2">
-                        <div className="w-10 h-10 bg-rose-500 rounded-lg flex items-center justify-center shadow-lg shadow-rose-200">
+                        <div className="w-10 h-10 bg-primary-500 rounded-lg flex items-center justify-center shadow-lg shadow-primary-200">
                             <Baby className="text-white w-6 h-6" />
                         </div>
                         <div>
@@ -91,12 +99,10 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
                         <NavItem to="/vaccines" icon={Syringe} label="Minhas Vacinas" />
                         <NavItem to="/nutritional-curve" icon={TrendingUp} label="Curva de Peso" />
                         <NavItem to="/tips" icon={Lightbulb} label="Dicas & Bem-estar" />
-                        <NavItem to="/community" icon={Users} label="Comunidade" />
 
                         <div className="my-4 border-t border-slate-100"></div>
 
                         <NavItem to="/setup" icon={Settings} label="Meus Dados Clínicos" />
-                        <NavItem to="/notifications" icon={Bell} label="Notificações" badge={unreadAlerts} />
                     </nav>
 
                     <div className="pt-6 border-t border-slate-100 mt-6">
@@ -134,7 +140,7 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
 
                     <div className="flex-1 flex justify-end items-center gap-4">
                         <div className="text-sm text-slate-500 pl-4 border-l border-slate-200">
-                            Semana atual: <span className="font-bold text-rose-500">{currentWeek}</span>
+                            Semana atual: <span className="font-bold text-primary-500">{currentWeek}</span>
                         </div>
                     </div>
                 </header>

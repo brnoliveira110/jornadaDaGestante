@@ -12,10 +12,7 @@ public class AppDbContext : DbContext
     public DbSet<Consultation> Consultations { get; set; }
     public DbSet<Vaccine> Vaccines { get; set; }
     public DbSet<ExamResult> Exams { get; set; }
-    public DbSet<Alert> Alerts { get; set; }
     public DbSet<Tip> Tips { get; set; }
-    public DbSet<Post> Posts { get; set; }
-    public DbSet<Comment> Comments { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
