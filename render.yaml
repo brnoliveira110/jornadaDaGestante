@@ -8,7 +8,7 @@ services:
     plan: free
     region: ohio
     # Health check settings (opcional, mas recomendado)
-    healthCheckPath: /swagger
+    healthCheckPath: /health
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
