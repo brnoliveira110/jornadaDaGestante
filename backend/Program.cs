@@ -14,12 +14,18 @@ builder.Services.AddControllers()
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Configure DbContext to use PostgreSQL
+// Configure DbContext
+// Prioritize Environment Variables for Docker/Render, fallback to appsettings
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 var host = Environment.GetEnvironmentVariable("DB_HOST");
-var dbName = Environment.GetEnvironmentVariable("DB_NAME");
-var user = Environment.GetEnvironmentVariable("DB_USER");
-var password = Environment.GetEnvironmentVariable("DB_PASSWORD");
-var connectionString = $"Host={host};Database={dbName};Username={user};Password={password}";
+if (!string.IsNullOrEmpty(host))
+{
+    var dbName = Environment.GetEnvironmentVariable("DB_NAME");
+    var user = Environment.GetEnvironmentVariable("DB_USER");
+    var password = Environment.GetEnvironmentVariable("DB_PASSWORD");
+    var port = Environment.GetEnvironmentVariable("DB_PORT") ?? "5432";
+    connectionString = $"Host={host};Port={port};Database={dbName};Username={user};Password={password}";
+}
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
@@ -45,10 +51,10 @@ using (var scope = app.Services.CreateScope())
     {
         var logger = services.GetRequiredService<ILogger<Program>>();
         logger.LogError(ex, "An error occurred while migrating the database.");
-        // Decide if you want to stop the application on migration failure
     }
 }
 
+// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -56,7 +62,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("AllowAll");
-app.UseStaticFiles();
+// app.UseHttpsRedirection();
+
 app.UseAuthorization();
 
 app.MapControllers();
