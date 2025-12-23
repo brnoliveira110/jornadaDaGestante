@@ -27,10 +27,7 @@ services:
     region: ohio
     envVars:
       - key: VITE_API_URL
-        fromService:
-          type: web
-          name: gestante-backend
-          property: url
+        value: https://gestante-backend.onrender.com
 
 databases:
   # Banco de Dados (Supabase é externo, mas aqui criamos um Postgres gerenciado pelo Render se preferir.
