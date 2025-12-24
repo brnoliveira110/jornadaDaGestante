@@ -27,6 +27,7 @@ interface DataContextType {
   // Ações de Autogestão
   updatePregnancyData: (data: Partial<PregnancyData>) => Promise<void>;
   addConsultation: (consultation: Consultation) => Promise<void>;
+  updateConsultation: (consultation: Consultation) => Promise<void>;
   addExamRequest: (name: string, date?: string) => Promise<void>;
   addVaccine: (vaccine: Vaccine) => Promise<void>;
   addExamResult: (exam: ExamResult) => Promise<void>;
@@ -169,7 +170,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         preGestationalBMI: 22,
         bloodType: BloodType.A_POS,
         weightGoalMin: 9,
-        weightGoalMax: 12
+        weightGoalMax: 12,
+        theme: 'NEUTRAL'
       };
 
       await api.createPregnancyData(initialPregnancyData);
@@ -202,6 +204,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     consultation.patientId = currentUser?.id!;
     const saved = await api.createConsultation(consultation);
     setConsultations([...consultations, saved]);
+  };
+
+  const updateConsultation = async (consultation: Consultation) => {
+    if (!currentUser) return;
+    consultation.patientId = currentUser.id;
+    await api.updateConsultation(consultation);
+    setConsultations(consultations.map(c => c.id === consultation.id ? consultation : c));
   };
 
   const addExamRequest = async (name: string, date?: string) => {
@@ -377,7 +386,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       exams,
       alerts, tips, posts,
       updatePregnancyData,
-      addConsultation, addExamRequest, addVaccine, addExamResult,
+      addConsultation, updateConsultation, addExamRequest, addVaccine, addExamResult,
       markAlertRead,
       toggleConsultationStatus, toggleVaccineStatus, toggleExamRealized,
       addPost, addComment, likePost, requestNotificationPermission

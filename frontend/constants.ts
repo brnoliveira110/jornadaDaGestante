@@ -43,7 +43,8 @@ export const MOCK_PREGNANCY_DATA: PregnancyData = {
   bloodType: BloodType.A_POS,
   spouseBloodType: BloodType.O_POS,
   weightGoalMin: 11,
-  weightGoalMax: 16
+  weightGoalMax: 16,
+  theme: 'GIRL'
 };
 
 export const MOCK_CONSULTATIONS: Consultation[] = [
@@ -123,15 +124,15 @@ export const MOCK_EXAMS: ExamResult[] = [
 ];
 
 export const TIMELINE_INFO = [
-  { month: 1, weeks: '1-4', size: 'Semente de Papoula', desc: 'O óvulo fertilizado se implanta no útero.' },
-  { month: 2, weeks: '5-8', size: 'Framboesa', desc: 'O coração começa a bater. Tubo neural se forma.' },
-  { month: 3, weeks: '9-12', size: 'Ameixa', desc: 'Formação de dedos e unhas. Rins começam a funcionar.' },
-  { month: 4, weeks: '13-16', size: 'Abacate', desc: 'Impressões digitais se formam. Pode-se saber o sexo.' },
-  { month: 5, weeks: '17-20', size: 'Banana', desc: 'Você pode começar a sentir os movimentos do bebê.' },
-  { month: 6, weeks: '21-24', size: 'Espiga de Milho', desc: 'O bebê responde a sons. Sobrancelhas visíveis.' },
-  { month: 7, weeks: '25-28', size: 'Berinjela', desc: 'Abre e fecha os olhos. Pulmões em amadurecimento.' },
-  { month: 8, weeks: '29-32', size: 'Abacaxi', desc: 'Ganho de peso rápido. Ossos endurecendo.' },
-  { month: 9, weeks: '33-40', size: 'Melancia', desc: 'Pronto para nascer. Posiciona-se de cabeça para baixo.' },
+  { month: 1, weeks: '1-4', size: 'Semente de Papoula', desc: 'A jornada começa! O óvulo fertilizado se implanta na parede uterina. O tubo neural (futuro cérebro e coluna) inicia sua formação.' },
+  { month: 2, weeks: '5-8', size: 'Framboesa', desc: 'O coraçãozinho já bate forte! Olhos, nariz e boca começam a se desenhar. Pequenos brotos surgem onde serão os braços e pernas.' },
+  { month: 3, weeks: '9-12', size: 'Ameixa', desc: 'Fase embrionária termina. O bebê já tem dedos e unhas, e os rins começam a produzir urina. O reflexo de sucção se desenvolve.' },
+  { month: 4, weeks: '13-16', size: 'Abacate', desc: 'A pele é transparente. O bebê começa a ouvir sons abafados do seu corpo. Já é possível descobrir o sexo com maior precisão!' },
+  { month: 5, weeks: '17-20', size: 'Banana', desc: 'Chutes e cambalhotas! Você começa a sentir o bebê mexer. Uma camada de vernix protege a pele do líquido amniótico.' },
+  { month: 6, weeks: '21-24', size: 'Espiga de Milho', desc: 'O bebê responde a sons externos e suas impressões digitais estão formadas. As pálpebras começam a se separar.' },
+  { month: 7, weeks: '25-28', size: 'Berinjela', desc: 'Os olhos abrem e fecham, percebendo a luz. O cérebro cresce rapidamente e o bebê começa a sonhar. O sistema respiratório amadurece.' },
+  { month: 8, weeks: '29-32', size: 'Abacaxi', desc: 'O bebê ganha peso e "arredonda". A lanagem (pelos finos) começa a cair. Ele treina a respiração para o grande dia.' },
+  { month: 9, weeks: '33-40', size: 'Melancia', desc: 'Reta final! O bebê está pronto e geralmente se encaixa na pelve. Os anticorpos da mãe são transferidos para proteger o bebê ao nascer.' },
 ];
 
 export const COMMUNITY_POSTS: Post[] = [

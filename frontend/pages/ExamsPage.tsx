@@ -44,7 +44,7 @@ const ExamsWrapper: React.FC<any> = () => {
                 value={requestName}
                 onChange={(e) => setRequestName(e.target.value)}
                 placeholder="Ex: Ultrassom Morfológico, Hemograma..."
-                className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
             <div>
@@ -53,14 +53,14 @@ const ExamsWrapper: React.FC<any> = () => {
                 type="date"
                 value={requestDate}
                 onChange={(e) => setRequestDate(e.target.value)}
-                className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
           </div>
           <div className="mt-4 flex justify-end">
             <button
               onClick={handleCreateRequest}
-              className="px-6 py-2 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-colors"
+              className="px-6 py-2 bg-primary-500 text-white font-medium rounded-xl hover:bg-primary-600 transition-colors"
             >
               Salvar
             </button>
@@ -98,7 +98,7 @@ const ExamsWrapper: React.FC<any> = () => {
                         }`}>
                         {exam.status === 'REVIEWED' ? 'Resultado Anexado' :
                           exam.status === 'REQUESTED' ? 'A realizar' :
-                            exam.status === 'REALIZED' ? 'Realizado (Aguardando Resultado)' : 'Enviado'}
+                            exam.status === 'REALIZED' ? 'Realizado' : 'Enviado'}
                       </span>
                     </p>
                   </div>
@@ -110,7 +110,7 @@ const ExamsWrapper: React.FC<any> = () => {
                 {exam.status === 'REQUESTED' && (
                   <button
                     onClick={(e) => { e.stopPropagation(); toggleExamRealized(exam.id); }}
-                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors"
+                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors"
                   >
                     <CheckSquare className="w-3 h-3" /> Já fiz
                   </button>

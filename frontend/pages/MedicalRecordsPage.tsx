@@ -11,23 +11,44 @@ interface MedicalRecordsProps {
 }
 
 const MedicalRecords: React.FC<MedicalRecordsProps> = ({ consultations }) => {
-  const { addConsultation, toggleConsultationStatus } = useData();
+  const { addConsultation, updateConsultation, toggleConsultationStatus } = useData();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   // Form State
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [weight, setWeight] = useState('');
   const [pressure, setPressure] = useState('');
   const [ig, setIg] = useState('');
   const [notes, setNotes] = useState('');
 
+  const handleOpenModal = (consultation?: Consultation) => {
+    if (consultation) {
+      setEditingId(consultation.id);
+      setDate(new Date(consultation.date).toISOString().split('T')[0]);
+      setWeight(consultation.currentWeight?.toString() || '');
+      setPressure(consultation.bloodPressure || '');
+      setIg(consultation.gestationalAgeWeeks.toString());
+      setNotes(consultation.notes || '');
+    } else {
+      setEditingId(null);
+      setDate(new Date().toISOString().split('T')[0]);
+      setWeight('');
+      setPressure('');
+      setIg('');
+      setNotes('');
+    }
+    setIsModalOpen(true);
+  };
+
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     if (!weight || !ig) return;
 
-    const newConsultation: Consultation = {
-      id: crypto.randomUUID(),
-      patientId: '',
-      date: new Date().toISOString(),
+    const consultationData: Consultation = {
+      id: editingId || crypto.randomUUID(),
+      patientId: '', // Context handles this
+      date: new Date(date).toISOString(),
       gestationalAgeWeeks: parseInt(ig),
       currentWeight: parseFloat(weight),
       bloodPressure: pressure,
@@ -40,10 +61,16 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({ consultations }) => {
       status: 'COMPLETED'
     };
 
-    addConsultation(newConsultation);
+    if (editingId) {
+      updateConsultation(consultationData);
+    } else {
+      addConsultation(consultationData);
+    }
+
     setIsModalOpen(false);
     // Reset form
-    setWeight(''); setPressure(''); setIg(''); setNotes('');
+    setEditingId(null);
+    setWeight(''); setPressure(''); setIg(''); setNotes(''); setDate(new Date().toISOString().split('T')[0]);
   };
 
   return (
@@ -51,11 +78,11 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({ consultations }) => {
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
         <div className="p-6 border-b border-slate-100 flex justify-between items-center">
           <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-            <FileText className="w-5 h-5 text-rose-500" />
+            <FileText className="w-5 h-5 text-primary-500" />
             Histórico de Consultas & Peso
           </h3>
           <button
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => handleOpenModal()}
             className="flex items-center gap-2 bg-primary-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-600 transition-colors shadow-sm"
           >
             <Plus className="w-4 h-4" />
@@ -67,14 +94,20 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({ consultations }) => {
           {/* Mobile Cards */}
           <div className="md:hidden space-y-3 mb-4">
             {consultations.map((c) => (
-              <div key={c.id} className="bg-slate-50 p-4 rounded-xl border border-slate-100 shadow-sm">
-                <div className="flex justify-between items-start mb-2">
+              <div key={c.id} className="bg-slate-50 p-4 rounded-xl border border-slate-100 shadow-sm relative">
+                <button
+                  onClick={() => handleOpenModal(c)}
+                  className="absolute top-4 right-4 text-slate-400 hover:text-primary-500"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </button>
+                <div className="flex justify-between items-start mb-2 pr-8">
                   <div>
                     <div className="font-bold text-slate-800 text-base">{formatDate(c.date)}</div>
                     <div className="text-xs text-slate-500 font-medium">{c.gestationalAgeWeeks} semanas</div>
                   </div>
                   <div className="text-right">
-                    <div className="font-bold text-rose-600 text-base">{c.currentWeight ? `${c.currentWeight} kg` : '-'}</div>
+                    <div className="font-bold text-primary-600 text-base">{c.currentWeight ? `${c.currentWeight} kg` : '-'}</div>
                     <div className="text-xs text-slate-400">{c.bloodPressure || 'PA --/--'}</div>
                   </div>
                 </div>
@@ -104,6 +137,7 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({ consultations }) => {
                 <th className="px-6 py-4">Peso (kg)</th>
                 <th className="px-6 py-4">PA (mmHg)</th>
                 <th className="px-6 py-4">Minhas Anotações</th>
+                <th className="px-6 py-4 w-10"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -120,12 +154,17 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({ consultations }) => {
                   </td>
                   <td className="px-6 py-4 font-medium text-slate-900">{formatDate(consultation.date)}</td>
                   <td className="px-6 py-4">{consultation.gestationalAgeWeeks}</td>
-                  <td className="px-6 py-4 font-bold text-rose-600">{consultation.currentWeight || '-'}</td>
+                  <td className="px-6 py-4 font-bold text-primary-600">{consultation.currentWeight || '-'}</td>
                   <td className="px-6 py-4">{consultation.bloodPressure || '-'}</td>
                   <td className="px-6 py-4 max-w-xs truncate">
                     <div className="flex flex-col gap-1">
                       <span className="truncate" title={consultation.notes}>{consultation.notes || (consultation.status === 'SCHEDULED' ? 'Agendada' : '')}</span>
                     </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <button onClick={() => handleOpenModal(consultation)} className="text-slate-400 hover:text-primary-500 transition-colors">
+                      <Edit2 className="w-4 h-4" />
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -144,7 +183,7 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({ consultations }) => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-              <h3 className="font-bold text-slate-800">Registrar Evolução</h3>
+              <h3 className="font-bold text-slate-800">{editingId ? 'Editar Evolução' : 'Registrar Evolução'}</h3>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">
                 <X className="w-5 h-5" />
               </button>
@@ -153,20 +192,25 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({ consultations }) => {
             <form onSubmit={handleSave} className="p-6 space-y-4">
               <p className="text-sm text-slate-500">Registre os dados obtidos na sua consulta médica para manter seu histórico atualizado.</p>
 
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1">Data do Registro</label>
+                <input required type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" />
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 mb-1">Idade Gestacional (Semanas)*</label>
-                  <input required type="number" value={ig} onChange={e => setIg(e.target.value)} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-rose-500 outline-none" placeholder="Ex: 24" />
+                  <input required type="number" value={ig} onChange={e => setIg(e.target.value)} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" placeholder="Ex: 24" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 mb-1">Peso Atual (kg)*</label>
-                  <input required type="number" step="0.1" value={weight} onChange={e => setWeight(e.target.value)} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-rose-500 outline-none" placeholder="Ex: 65.5" />
+                  <input required type="number" step="0.1" value={weight} onChange={e => setWeight(e.target.value)} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" placeholder="Ex: 65.5" />
                 </div>
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-500 mb-1">PA (mmHg) - Opcional</label>
-                <input type="text" value={pressure} onChange={e => setPressure(e.target.value)} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-rose-500 outline-none" placeholder="120/80" />
+                <input type="text" value={pressure} onChange={e => setPressure(e.target.value)} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" placeholder="120/80" />
               </div>
 
               <div>
@@ -174,14 +218,14 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({ consultations }) => {
                 <textarea
                   value={notes}
                   onChange={e => setNotes(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-rose-500 outline-none h-24 resize-none"
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 outline-none h-24 resize-none"
                   placeholder="O que o médico disse? Como você se sentiu?"
                 ></textarea>
               </div>
 
               <button
                 type="submit"
-                className="w-full bg-rose-500 text-white py-3 rounded-xl font-bold hover:bg-rose-600 transition-colors flex items-center justify-center gap-2"
+                className="w-full bg-primary-500 text-white py-3 rounded-xl font-bold hover:bg-primary-600 transition-colors flex items-center justify-center gap-2"
               >
                 <Save className="w-4 h-4" /> Salvar no Diário
               </button>
