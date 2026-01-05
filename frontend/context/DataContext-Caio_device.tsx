@@ -32,9 +32,7 @@ interface DataContextType {
   addVaccine: (vaccine: Vaccine) => Promise<void>;
   addExamResult: (exam: ExamResult) => Promise<void>;
 
-  markAlertRead: (id: string) => Promise<void>;
 
-  // Toggles
   // Toggles
   toggleConsultationStatus: (id: string) => Promise<void>;
   toggleVaccineStatus: (id: string) => Promise<void>;
@@ -51,6 +49,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [consultations, setConsultations] = useState<Consultation[]>([]);
   const [vaccines, setVaccines] = useState<Vaccine[]>([]);
   const [exams, setExams] = useState<ExamResult[]>([]);
+
   const [tips, setTips] = useState<Tip[]>(INITIAL_TIPS);
 
   // Load tips from API or keep static if preferred? 
@@ -96,10 +95,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const exms = await api.getExams(userId).catch(() => []);
       setExams(exms);
 
+
+
     } catch (error) {
       console.error("Failed to load user data", error);
     }
   };
+
+
 
   // --- Autenticação ---
   const login = async (username: string) => {
@@ -263,6 +266,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await api.updateExam(updated);
     setExams(exams.map(e => e.id === id ? updated : e));
   };
+
+
+
+
 
   return (
     <DataContext.Provider value={{

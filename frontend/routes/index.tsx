@@ -4,6 +4,7 @@ import { MainLayout } from '../layouts/MainLayout';
 import { useData } from '../context/DataContext';
 
 import DashboardPage from '../pages/DashboardPage';
+import { calculateGestationalAge } from '../utils';
 import TimelinePage from '../pages/TimelinePage';
 import MedicalRecordsPageWrapper from '../pages/MedicalRecordsPage';
 import ExamsPageWrapper from '../pages/ExamsPage';
@@ -28,11 +29,12 @@ const DashboardWrapper = () => {
     return <DashboardPage data={pregnancyData} user={currentUser} currentWeight={currentWeight} onViewTips={onViewTips} />;
 };
 
+
+
 const TimelineWrapper = () => {
     const { pregnancyData } = useData();
-    // Re-calculating here or moving logic to hook
-    const currentWeek = pregnancyData ? (new Date().getTime() - new Date(pregnancyData.dum).getTime()) / (1000 * 60 * 60 * 24 * 7) : 0; // Simplified
-    return <TimelinePage currentWeek={Math.floor(currentWeek)} />;
+    const currentWeek = pregnancyData ? calculateGestationalAge(pregnancyData.dum) : 0;
+    return <TimelinePage currentWeek={currentWeek} />;
 };
 
 const MedicalRecordsWrapper = () => {

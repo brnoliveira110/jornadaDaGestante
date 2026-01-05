@@ -1,7 +1,54 @@
-import { BloodType, Consultation, ExamResult, Post, PregnancyData, User, UserRole, Vaccine, Tip } from './types';
+import { BloodType, Consultation, ExamResult, Post, PregnancyData, User, UserRole, Vaccine, Tip, WeeklyDevelopment } from './types';
 import { calculateDPP } from './utils';
 
 const MOCK_DUM = '2023-11-15'; // Exemplo
+
+export const WEEKLY_DEVELOPMENT: WeeklyDevelopment[] = [
+  { week: 1, sizeComparison: 'Semente de Papoula (Micro)', weight: '< 1g', length: '< 1mm', heartRate: 'Inexistente', description: 'A jornada começa! Seu corpo se prepara para a concepção. O revestimento uterino engrossa.' },
+  { week: 2, sizeComparison: 'Semente de Papoula', weight: '< 1g', length: '< 1mm', heartRate: 'Inexistente', description: 'Ovulação e fertilização. O óvulo encontra o espermatozoide e a mágica acontece.', imageUrl: '/assets/images/fetal_development/week_2.png' },
+  { week: 3, sizeComparison: 'Grão de Sal', weight: '< 1g', length: '0.1mm', heartRate: 'Inexistente', description: 'Implantação no útero. O blastocisto se fixa e começa a liberar hormônios da gravidez.' },
+  { week: 4, sizeComparison: 'Semente de Gergelim', weight: '< 1g', length: '1mm', heartRate: 'Iniciando', description: 'Tubo neural em formação. O saco vitelino nutre o embrião até a placenta assumir.', imageUrl: '/assets/images/fetal_development/week_4.png' },
+  { week: 5, sizeComparison: 'Semente de Laranja', weight: '< 1g', length: '2mm', heartRate: '80-100 bpm', description: 'O coração começa a bater! Formam-se os primórdios do cérebro e medula espinhal.' },
+  { week: 6, sizeComparison: 'Ervilha', weight: '< 1g', length: '5mm', heartRate: '100-120 bpm', description: 'Nariz, boca e orelhas começam a tomar forma. Os brotos dos membros aparecem.', imageUrl: '/assets/images/fetal_development/week_6.png' },
+  { week: 7, sizeComparison: 'Mirtilo', weight: '< 1g', length: '10mm', heartRate: '120-140 bpm', description: 'Braços e pernas crescem. Rins começam a se desenvolver.' },
+  { week: 8, sizeComparison: 'Framboesa', weight: '1g', length: '1.6cm', heartRate: '140-160 bpm', description: 'Dedos das mãos e pés se formam (com membranas). O tronco se endireita.' },
+  { week: 9, sizeComparison: 'Azeitona', weight: '2g', length: '2.3cm', heartRate: '150-170 bpm', description: 'Coração já tem 4 câmaras. O bebê começa a se mover, mas você não sente.' },
+  { week: 10, sizeComparison: 'Ameixa Seca', weight: '4g', length: '3.1cm', heartRate: '150-170 bpm', description: 'Fase fetal começa! Órgãos vitais estão formados e começam a funcionar.' },
+  { week: 11, sizeComparison: 'Limão', weight: '7g', length: '4.1cm', heartRate: '140-160 bpm', description: 'Pele transparente. Ossos começam a endurecer. O bebê já pode soluçar.' },
+  { week: 12, sizeComparison: 'Maracujá', weight: '14g', length: '5.4cm', heartRate: '140-160 bpm', description: 'Reflexos se desenvolvem. O médico pode ouvir o coração com doppler.' },
+  { week: 13, sizeComparison: 'Pêssego', weight: '23g', length: '7.4cm', heartRate: '140-160 bpm', description: 'Impressões digitais se formam. Cordas vocais em desenvolvimento.' },
+  { week: 14, sizeComparison: 'Limão Siciliano', weight: '43g', length: '8.7cm', heartRate: '140-150 bpm', description: 'O bebê faz caretas e pode chupar o dedo. Rins produzem urina.' },
+  { week: 15, sizeComparison: 'Maçã', weight: '70g', length: '10.1cm', heartRate: '140-150 bpm', description: 'Pode sentir luz através das pálpebras fechadas. Pernas crescem mais que os braços.' },
+  { week: 16, sizeComparison: 'Abacate', weight: '100g', length: '11.6cm', heartRate: '140-150 bpm', description: 'Coração bombeia 25L de sangue/dia. Sexo pode ser visível no ultrassom.' },
+  { week: 17, sizeComparison: 'Cebola', weight: '140g', length: '13cm', heartRate: '140-150 bpm', description: 'Esqueleto muda de cartilagem para osso. Cordão umbilical fica mais grosso.' },
+  { week: 18, sizeComparison: 'Batata Doce', weight: '190g', length: '14.2cm', heartRate: '140-150 bpm', description: 'Ouvidos formados e funcionais. Pode ouvir sua voz e batimentos cardíacos.' },
+  { week: 19, sizeComparison: 'Manga', weight: '240g', length: '15.3cm', heartRate: '140-150 bpm', description: 'Vernix caseoso cobre a pele para proteção. Cabelo começa a crescer.' },
+  { week: 20, sizeComparison: 'Banana', weight: '300g', length: '16.4cm', heartRate: '140-150 bpm', description: 'Meio do caminho! Você provavelmente sente os movimentos (chutes).' },
+  { week: 21, sizeComparison: 'Centaurea', weight: '360g', length: '26.7cm', heartRate: '130-150 bpm', description: 'Sobrancelhas e cílios formados. O bebê engole líquido amniótico.' },
+  { week: 22, sizeComparison: 'Mamão Papaia', weight: '430g', length: '27.8cm', heartRate: '130-150 bpm', description: 'Tato apurado. O bebê explora o próprio rosto e cordão umbilical.' },
+  { week: 23, sizeComparison: 'Toranja', weight: '500g', length: '28.9cm', heartRate: '130-150 bpm', description: 'Audição apurada. Pulmões produzem surfactante para respirar no futuro.' },
+  { week: 24, sizeComparison: 'Milho', weight: '600g', length: '30cm', heartRate: '130-150 bpm', description: 'Viabilidade fetal aumenta. O bebê dorme e acorda regularmente.' },
+  { week: 25, sizeComparison: 'Couve-flor', weight: '660g', length: '34.6cm', heartRate: '130-150 bpm', description: 'Cabelo tem cor e textura. Gordura corporal começa a se acumular.' },
+  { week: 26, sizeComparison: 'Alface', weight: '760g', length: '35.6cm', heartRate: '130-150 bpm', description: 'Olhos começam a abrir! Resposta a luzes fortes externas.' },
+  { week: 27, sizeComparison: 'Brócolis', weight: '875g', length: '36.6cm', heartRate: '130-150 bpm', description: 'Cérebro ativo e complexo. O bebê pode sonhar.' },
+  { week: 28, sizeComparison: 'Berinjela', weight: '1kg', length: '37.6cm', heartRate: '130-140 bpm', description: 'Pode piscar os olhos. O bebê já reconhece sua voz claramente.' },
+  { week: 29, sizeComparison: 'Abóbora "Butternut"', weight: '1.2kg', length: '38.6cm', heartRate: '130-140 bpm', description: 'Cabeça proporcional ao corpo. Espaço fica apertado, movimentos mudam.' },
+  { week: 30, sizeComparison: 'Repolho', weight: '1.3kg', length: '39.9cm', heartRate: '130-140 bpm', description: 'Medula óssea produz glóbulos vermelhos. Lanugem começa a cair.' },
+  { week: 31, sizeComparison: 'Coco', weight: '1.5kg', length: '41.1cm', heartRate: '130-140 bpm', description: 'Todos os 5 sentidos funcionam. O bebê vira a cabeça para sons.' },
+  { week: 32, sizeComparison: 'Couve Kale', weight: '1.7kg', length: '42.4cm', heartRate: '130-140 bpm', description: 'Unhas das mãos completas. Treina respiração intensamente.' },
+  { week: 33, sizeComparison: 'Abacaxi', weight: '1.9kg', length: '43.7cm', heartRate: '120-140 bpm', description: 'Sistema imunológico absorve anticorpos da mãe. Ossos endurecem.' },
+  { week: 34, sizeComparison: 'Melão Cantaloupe', weight: '2.1kg', length: '45cm', heartRate: '120-140 bpm', description: 'Gordura preenche a pele enrugada. Testículos descem (meninos).' },
+  { week: 35, sizeComparison: 'Melão Honeydew', weight: '2.4kg', length: '46.2cm', heartRate: '120-140 bpm', description: 'Posição cefálica (cabeça para baixo) geralmente assumida.' },
+  { week: 36, sizeComparison: 'Alface Romana', weight: '2.6kg', length: '47.4cm', heartRate: '120-140 bpm', description: 'Pulmões maduros. O bebê desce para a pelve (encaixe).' },
+  { week: 37, sizeComparison: 'Acelga', weight: '2.9kg', length: '48.6cm', heartRate: '120-140 bpm', description: 'Termo precoce. O bebê pratica sucção e deglutição.' },
+  { week: 38, sizeComparison: 'Aipo', weight: '3.1kg', length: '49.8cm', heartRate: '120-140 bpm', description: 'Termo pleno. Vernix quase sumiu. Mecônio formado no intestino.' },
+  { week: 39, sizeComparison: 'Mini Melancia', weight: '3.3kg', length: '50.7cm', heartRate: '120-140 bpm', description: 'Pronto para nascer! Pele nova se forma sob a antiga.' },
+  { week: 40, sizeComparison: 'Melancia', weight: '3.5kg', length: '51.2cm', heartRate: '120-140 bpm', description: 'Data prevista! Ossos do crânio flexíveis para o parto.' },
+  { week: 41, sizeComparison: 'Jaca', weight: '3.6kg+', length: '51.5cm+', heartRate: '120-140 bpm', description: 'Pós-termo. Monitoramento constante. O bebê continua ganhando peso.' },
+  { week: 42, sizeComparison: 'Abóbora Gigante', weight: '3.7kg+', length: '51.7cm+', heartRate: '120-140 bpm', description: 'Indução provável. A placenta pode começar a envelhecer.' }
+];
+
+
 
 export const CURRENT_USER_DOCTOR: User = {
   id: 'u1',
@@ -123,17 +170,7 @@ export const MOCK_EXAMS: ExamResult[] = [
   { id: 'e3', patientId: 'u2', name: 'Ultrassom Morfológico', date: '2024-03-25', type: 'IMAGE', status: 'UPLOADED' },
 ];
 
-export const TIMELINE_INFO = [
-  { month: 1, weeks: '1-4', size: 'Semente de Papoula', desc: 'A jornada começa! O óvulo fertilizado se implanta na parede uterina. O tubo neural (futuro cérebro e coluna) inicia sua formação.' },
-  { month: 2, weeks: '5-8', size: 'Framboesa', desc: 'O coraçãozinho já bate forte! Olhos, nariz e boca começam a se desenhar. Pequenos brotos surgem onde serão os braços e pernas.' },
-  { month: 3, weeks: '9-12', size: 'Ameixa', desc: 'Fase embrionária termina. O bebê já tem dedos e unhas, e os rins começam a produzir urina. O reflexo de sucção se desenvolve.' },
-  { month: 4, weeks: '13-16', size: 'Abacate', desc: 'A pele é transparente. O bebê começa a ouvir sons abafados do seu corpo. Já é possível descobrir o sexo com maior precisão!' },
-  { month: 5, weeks: '17-20', size: 'Banana', desc: 'Chutes e cambalhotas! Você começa a sentir o bebê mexer. Uma camada de vernix protege a pele do líquido amniótico.' },
-  { month: 6, weeks: '21-24', size: 'Espiga de Milho', desc: 'O bebê responde a sons externos e suas impressões digitais estão formadas. As pálpebras começam a se separar.' },
-  { month: 7, weeks: '25-28', size: 'Berinjela', desc: 'Os olhos abrem e fecham, percebendo a luz. O cérebro cresce rapidamente e o bebê começa a sonhar. O sistema respiratório amadurece.' },
-  { month: 8, weeks: '29-32', size: 'Abacaxi', desc: 'O bebê ganha peso e "arredonda". A lanagem (pelos finos) começa a cair. Ele treina a respiração para o grande dia.' },
-  { month: 9, weeks: '33-40', size: 'Melancia', desc: 'Reta final! O bebê está pronto e geralmente se encaixa na pelve. Os anticorpos da mãe são transferidos para proteger o bebê ao nascer.' },
-];
+
 
 export const COMMUNITY_POSTS: Post[] = [
   {

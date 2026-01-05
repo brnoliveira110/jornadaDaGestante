@@ -33,12 +33,12 @@ const Login: React.FC<LoginProps> = ({ onRegisterClick }) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden animate-in fade-in zoom-in-95 duration-300">
+    <div className="min-h-screen bg-primary-50 flex items-center justify-center p-4">
+      <div className="max-w-md w-full bg-secondary-50 rounded-2xl shadow-xl border border-primary-200 overflow-hidden animate-in fade-in zoom-in-95 duration-300">
 
         {/* Header */}
-        <div className="p-8 text-center bg-gradient-to-b from-white to-slate-50">
-          <div className="w-16 h-16 bg-rose-500 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-rose-200 transform rotate-3">
+        <div className="p-8 text-center bg-gradient-to-b from-secondary-50 to-primary-50/20">
+          <div className="w-16 h-16 bg-primary-500 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-primary-200 transform rotate-3">
             <Baby className="text-white w-8 h-8" />
           </div>
           <h1 className="text-2xl font-bold text-slate-800">Jornada da Gestante</h1>
@@ -58,7 +58,7 @@ const Login: React.FC<LoginProps> = ({ onRegisterClick }) => {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Ex: Maria Silva"
-                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 transition-all text-sm"
+                className="w-full pl-10 pr-4 py-3 bg-white border border-primary-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all text-sm"
               />
             </div>
           </div>
@@ -71,7 +71,7 @@ const Login: React.FC<LoginProps> = ({ onRegisterClick }) => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 transition-all text-sm"
+              className="w-full px-4 py-3 bg-white border border-primary-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all text-sm"
             />
           </div>
 
@@ -85,7 +85,7 @@ const Login: React.FC<LoginProps> = ({ onRegisterClick }) => {
             type="submit"
             disabled={loading}
             className={`
-              w-full py-3 rounded-xl font-bold text-white shadow-lg shadow-rose-200 hover:shadow-rose-300 transition-all flex items-center justify-center gap-2 bg-rose-600
+              w-full py-3 rounded-xl font-bold text-white shadow-lg shadow-primary-200 hover:shadow-primary-300 transition-all flex items-center justify-center gap-2 bg-primary-600
               ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:-translate-y-0.5'}
             `}
           >
@@ -96,20 +96,16 @@ const Login: React.FC<LoginProps> = ({ onRegisterClick }) => {
             )}
           </button>
 
-          <div className="pt-4 border-t border-slate-50 mt-2 text-center">
+          <div className="pt-4 border-t border-primary-200 mt-2 text-center">
             <p className="text-xs text-slate-500 mb-3">Ainda não tem cadastro?</p>
             <button
               type="button"
               onClick={onRegisterClick}
-              className="text-sm font-bold text-rose-600 hover:text-rose-700 hover:underline transition-all"
+              className="text-sm font-bold text-primary-600 hover:text-primary-700 hover:underline transition-all"
             >
               Criar minha conta grátis
             </button>
           </div>
-
-          <p className="text-center text-[10px] text-slate-300 mt-6">
-            Login demo: <strong>{MOCK_CREDENTIALS.PATIENT_1.login}</strong> / <strong>123</strong>
-          </p>
         </form>
       </div>
     </div>

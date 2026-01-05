@@ -88,17 +88,7 @@ export interface ExamResult {
   digitalSignature?: string; // Hash simulado
 }
 
-// 6. Schema de Alertas
-export interface Alert {
-  id: string;
-  userId?: string; // Opcional se for geral, ou obrigatório se for pessoal
-  title: string;
-  message: string;
-  type: 'WARNING' | 'INFO' | 'SUCCESS';
-  date: string;
-  read: boolean;
-  targetRole: UserRole | 'BOTH';
-}
+
 
 // 7. Schema de Dicas
 export interface Tip {
@@ -111,9 +101,21 @@ export interface Tip {
   readTime: string;
 }
 
+
+
+export interface WeeklyDevelopment {
+  week: number;
+  sizeComparison: string;
+  weight: string;
+  length: string;
+  heartRate: string;
+  description: string;
+  imageUrl?: string;
+}
+
 export interface Comment {
   id: string;
-  postId: string; // Adicionado
+  postId: string;
   authorName: string;
   content: string;
   timestamp: string;

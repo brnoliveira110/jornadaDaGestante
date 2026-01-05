@@ -11,9 +11,6 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 5173,
       host: '0.0.0.0',
-      watch: {
-        usePolling: true,
-      },
     },
     plugins: [
       react(),
@@ -21,7 +18,7 @@ export default defineConfig(({ mode }) => {
       VitePWA({
         registerType: 'autoUpdate',
         devOptions: {
-          enabled: true
+          enabled: false
         },
         manifest: {
           name: 'Jornada da Gestante',

@@ -50,7 +50,6 @@ export const api = {
 
     updateExam: (data: ExamResult) => fetchJson<void>(`/exams/${data.id}`, { method: 'PUT', body: JSON.stringify(data) }),
 
-    // Alerts
     // Tips
     getTips: () => fetchJson<Tip[]>('/tips'),
 };
