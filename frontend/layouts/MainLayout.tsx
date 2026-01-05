@@ -22,6 +22,7 @@ import { calculateGestationalAge } from '../utils';
 export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const { currentUser, logout, pregnancyData } = useData();
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
     const location = useLocation();
 
     React.useEffect(() => {
@@ -138,7 +139,17 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
                         <span className="font-bold text-slate-800">Jornada</span>
                     </div>
 
-                    <div className="flex-1 flex justify-end items-center gap-4">
+                    <div className="flex-1 flex justify-end items-center gap-6">
+                        {/* BMI Calculator Widget */}
+                        {/* BMI Calculator Button */}
+                        <button
+                            onClick={() => setIsCalculatorOpen(true)}
+                            className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-white/60 hover:bg-white text-slate-600 rounded-lg border border-neutral-200 transition-colors text-xs font-bold uppercase"
+                        >
+                            <TrendingUp className="w-4 h-4" />
+                            Calc. IMC
+                        </button>
+
                         <div className="text-sm text-slate-500 pl-4 border-l border-neutral-200">
                             Semana atual: <span className="font-bold text-primary-600">{currentWeek}</span>
                         </div>
@@ -152,6 +163,111 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
                     </div>
                 </div>
             </main>
+            {/* BMI Calculator Modal */}
+            {isCalculatorOpen && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm animate-in fade-in">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95">
+                        <div className="bg-primary-50 px-6 py-4 border-b border-primary-100 flex items-center justify-between">
+                            <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                                <TrendingUp className="w-5 h-5 text-primary-600" />
+                                Calculadora de IMC
+                            </h3>
+                            <button onClick={() => setIsCalculatorOpen(false)} className="text-slate-400 hover:text-slate-600">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="p-6 space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 mb-1">Peso (kg)</label>
+                                    <input
+                                        type="number"
+                                        id="modal-bmi-weight"
+                                        placeholder="0.0"
+                                        className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-lg"
+                                        onChange={() => {
+                                            const wInput = document.getElementById('modal-bmi-weight') as HTMLInputElement;
+                                            const hInput = document.getElementById('modal-bmi-height') as HTMLInputElement;
+                                            const result = document.getElementById('modal-bmi-result');
+                                            const status = document.getElementById('modal-bmi-status');
+
+                                            const w = parseFloat(wInput?.value || '0');
+                                            const h = parseFloat(hInput?.value || '0');
+
+                                            if (w > 0 && h > 0 && result && status) {
+                                                const bmi = w / (h * h);
+                                                result.innerText = bmi.toFixed(1);
+
+                                                let text = '';
+                                                let color = '';
+                                                if (bmi < 18.5) { text = 'Abaixo do peso'; color = 'text-blue-500'; }
+                                                else if (bmi < 24.9) { text = 'Peso normal'; color = 'text-green-500'; }
+                                                else if (bmi < 29.9) { text = 'Sobrepeso'; color = 'text-amber-500'; }
+                                                else { text = 'Obesidade'; color = 'text-red-500'; }
+
+                                                status.innerText = text;
+                                                status.className = `text-sm font-bold ${color}`;
+                                            } else if (result && status) {
+                                                result.innerText = '--';
+                                                status.innerText = 'Aguardando dados...';
+                                                status.className = 'text-sm text-slate-400';
+                                            }
+                                        }}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 mb-1">Altura (m)</label>
+                                    <input
+                                        type="number"
+                                        id="modal-bmi-height"
+                                        placeholder="0.00"
+                                        className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-lg"
+                                        onChange={() => {
+                                            const wInput = document.getElementById('modal-bmi-weight') as HTMLInputElement;
+                                            const hInput = document.getElementById('modal-bmi-height') as HTMLInputElement;
+                                            const result = document.getElementById('modal-bmi-result');
+                                            const status = document.getElementById('modal-bmi-status');
+
+                                            const w = parseFloat(wInput?.value || '0');
+                                            const h = parseFloat(hInput?.value || '0');
+
+                                            if (w > 0 && h > 0 && result && status) {
+                                                const bmi = w / (h * h);
+                                                result.innerText = bmi.toFixed(1);
+
+                                                let text = '';
+                                                let color = '';
+                                                if (bmi < 18.5) { text = 'Abaixo do peso'; color = 'text-blue-500'; }
+                                                else if (bmi < 24.9) { text = 'Peso normal'; color = 'text-green-500'; }
+                                                else if (bmi < 29.9) { text = 'Sobrepeso'; color = 'text-amber-500'; }
+                                                else { text = 'Obesidade'; color = 'text-red-500'; }
+
+                                                status.innerText = text;
+                                                status.className = `text-sm font-bold ${color}`;
+                                            } else if (result && status) {
+                                                result.innerText = '--';
+                                                status.innerText = 'Aguardando dados...';
+                                                status.className = 'text-sm text-slate-400';
+                                            }
+                                        }}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="bg-slate-50 rounded-xl p-4 flex flex-col items-center justify-center border border-slate-100">
+                                <span className="text-xs text-slate-500 uppercase font-bold mb-1">Seu IMC</span>
+                                <span id="modal-bmi-result" className="text-4xl font-extrabold text-slate-800">--</span>
+                                <span id="modal-bmi-status" className="text-sm text-slate-400 mt-1">Aguardando dados...</span>
+                            </div>
+
+                            <p className="text-[10px] text-center text-slate-400 leading-tight">
+                                * O cálculo de IMC é apenas uma referência. Consulte sempre seu obstetra para avaliação adequada do ganho de peso na gestação.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

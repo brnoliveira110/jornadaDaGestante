@@ -27,7 +27,7 @@ const StatCard = ({ icon: Icon, title, value, subtext, colorClass }: any) => (
 );
 
 const Dashboard: React.FC<DashboardProps> = ({ data, currentWeight, onViewTips }) => {
-  const { exams } = useData();
+  const { exams, currentUser } = useData();
   const gestationalAge = calculateGestationalAge(data.dum);
   const totalWeightGain = (currentWeight - data.initialWeight).toFixed(1);
   const currentBMI = calculateBMI(currentWeight, data.preGestationalHeight);
@@ -93,7 +93,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, currentWeight, onViewTips }
           <div className="order-2 lg:order-1 space-y-6 text-center lg:text-left">
             <div>
               <h2 className="text-3xl lg:text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary-200 to-white mb-2">
-                Sua jornada está incrível!
+                Olá {currentUser?.name?.split(' ')[0] || 'Gestante'}
               </h2>
               <p className="text-slate-300 text-lg leading-relaxed">
                 {currentDevelopment?.description || 'O bebê continua crescendo e se desenvolvendo a cada dia.'}
@@ -198,11 +198,8 @@ const Dashboard: React.FC<DashboardProps> = ({ data, currentWeight, onViewTips }
                     <span className="block text-xs font-bold uppercase">{new Date(exam.date).toLocaleString('default', { month: 'short' }).replace('.', '')}</span>
                     <span className="block text-xl font-bold text-slate-800">{new Date(exam.date).getDate()}</span>
                   </div>
-                  <div>
+                  <div className="flex flex-col">
                     <h4 className="font-bold text-slate-700">{exam.name}</h4>
-                    <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
-                      <Clock className="w-3 h-3" /> {new Date(exam.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </p>
                   </div>
                 </div>
               ))

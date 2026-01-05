@@ -58,4 +58,15 @@ public class ExamsController : ControllerBase
         await _context.SaveChangesAsync();
         return NoContent();
     }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(Guid id)
+    {
+        var item = await _context.Exams.FindAsync(id);
+        if (item == null) return NotFound();
+
+        _context.Exams.Remove(item);
+        await _context.SaveChangesAsync();
+        return NoContent();
+    }
 }

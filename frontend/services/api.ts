@@ -49,6 +49,7 @@ export const api = {
     createExam: (data: ExamResult) => fetchJson<ExamResult>('/exams', { method: 'POST', body: JSON.stringify(data) }),
 
     updateExam: (data: ExamResult) => fetchJson<void>(`/exams/${data.id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteExam: (id: string) => fetchJson<void>(`/exams/${id}`, { method: 'DELETE' }),
 
     // Alerts
     // Tips

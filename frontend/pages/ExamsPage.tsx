@@ -4,21 +4,46 @@ import { UserRole } from '../types';
 import { Upload, FileText, Image as ImageIcon, Eye, Plus, FileBadge, CheckCircle, CheckSquare } from 'lucide-react';
 
 const ExamsWrapper: React.FC<any> = () => {
-  const { exams, addExamRequest, toggleExamRealized } = useData();
+  const { exams, addExamRequest, toggleExamRealized, updateExam, deleteExam } = useData();
 
-  // Estado para adicionar exame manualmente
+  // Estado para adicionar/editar exame
   const [requestName, setRequestName] = useState('');
   const [requestDate, setRequestDate] = useState(new Date().toISOString().split('T')[0]);
   const [isAdding, setIsAdding] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
-
-  const handleCreateRequest = () => {
+  const handleSaveRequest = async () => {
     if (requestName.trim()) {
-      addExamRequest(requestName, requestDate);
-      setRequestName('');
-      setRequestDate(new Date().toISOString().split('T')[0]);
-      setIsAdding(false);
+      if (editingId) {
+        // Edit mode
+        const examToUpdate = exams.find(e => e.id === editingId);
+        if (examToUpdate) {
+          await updateExam({ ...examToUpdate, name: requestName, date: new Date(requestDate).toISOString() });
+        }
+      } else {
+        // Create mode
+        await addExamRequest(requestName, requestDate);
+      }
+      resetForm();
     }
+  };
+
+  const startEditing = (exam: any) => {
+    setRequestName(exam.name);
+    setRequestDate(new Date(exam.date).toISOString().split('T')[0]);
+    setEditingId(exam.id);
+    setIsAdding(true);
+  };
+
+  const resetForm = () => {
+    setRequestName('');
+    setRequestDate(new Date().toISOString().split('T')[0]);
+    setIsAdding(false);
+    setEditingId(null);
+  };
+
+  const handleDelete = async (id: string) => {
+    await deleteExam(id);
   };
 
   return (
@@ -26,11 +51,11 @@ const ExamsWrapper: React.FC<any> = () => {
       <div className="flex justify-between items-center">
         <h3 className="font-bold text-slate-800 text-lg">Meus Exames</h3>
         <button
-          onClick={() => setIsAdding(!isAdding)}
+          onClick={() => { resetForm(); setIsAdding(!isAdding); }}
           className="px-4 py-2 bg-primary-500 text-white font-medium rounded-xl hover:bg-primary-600 transition-colors flex items-center gap-2 text-sm"
         >
           <Plus className="w-4 h-4" />
-          Adicionar Novo Exame
+          {isAdding ? 'Cancelar' : 'Adicionar Novo Exame'}
         </button>
       </div>
 
@@ -57,12 +82,18 @@ const ExamsWrapper: React.FC<any> = () => {
               />
             </div>
           </div>
-          <div className="mt-4 flex justify-end">
+          <div className="mt-4 flex justify-end gap-2">
             <button
-              onClick={handleCreateRequest}
+              onClick={resetForm}
+              className="px-6 py-2 text-slate-500 font-medium hover:bg-slate-50 rounded-xl transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleSaveRequest}
               className="px-6 py-2 bg-primary-500 text-white font-medium rounded-xl hover:bg-primary-600 transition-colors"
             >
-              Salvar
+              {editingId ? 'Atualizar' : 'Salvar'}
             </button>
           </div>
         </div>
@@ -72,7 +103,7 @@ const ExamsWrapper: React.FC<any> = () => {
       <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
         <ul className="divide-y divide-slate-100">
           {exams.map((exam) => (
-            <li key={exam.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
+            <li key={exam.id} className="p-4 flex flex-col md:flex-row md:items-center justify-between hover:bg-slate-50 transition-colors gap-4">
               <div className="flex items-center gap-4">
                 <div className={`
                   p-3 rounded-xl flex items-center justify-center
@@ -105,8 +136,26 @@ const ExamsWrapper: React.FC<any> = () => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                {/* Botão para Marcar como Realizado */}
+              <div className="flex items-center gap-2 self-end md:self-auto">
+                {/* Delete Button (Only for requested/realized) */}
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleDelete(exam.id); }}
+                  className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                  title="Remover exame"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                </button>
+
+                {/* Edit Button */}
+                <button
+                  onClick={(e) => { e.stopPropagation(); startEditing(exam); }}
+                  className="p-2 text-slate-400 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-colors"
+                  title="Editar exame"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+                </button>
+
+                {/* Status Toggle Button */}
                 {exam.status === 'REQUESTED' && (
                   <button
                     onClick={(e) => { e.stopPropagation(); toggleExamRealized(exam.id); }}
@@ -117,9 +166,13 @@ const ExamsWrapper: React.FC<any> = () => {
                 )}
 
                 {exam.status === 'REALIZED' && (
-                  <span className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-purple-700 bg-purple-100 rounded-lg border border-purple-200">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); toggleExamRealized(exam.id); }}
+                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-purple-700 bg-purple-100 hover:bg-purple-200 rounded-lg border border-purple-200 transition-colors"
+                    title="Desfazer (Marcar como não realizado)"
+                  >
                     <CheckCircle className="w-3 h-3" /> Feito
-                  </span>
+                  </button>
                 )}
               </div>
             </li>

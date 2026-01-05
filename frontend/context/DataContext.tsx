@@ -31,6 +31,8 @@ interface DataContextType {
   addExamRequest: (name: string, date?: string) => Promise<void>;
   addVaccine: (vaccine: Vaccine) => Promise<void>;
   addExamResult: (exam: ExamResult) => Promise<void>;
+  updateExam: (exam: ExamResult) => Promise<void>;
+  deleteExam: (id: string) => Promise<void>;
 
   markAlertRead: (id: string) => Promise<void>;
 
@@ -226,6 +228,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setExams([...exams, saved]);
   };
 
+  const updateExam = async (exam: ExamResult) => {
+    if (!currentUser) return;
+    await api.updateExam(exam);
+    setExams(exams.map(e => e.id === exam.id ? exam : e));
+  };
+
+  const deleteExam = async (id: string) => {
+    if (!currentUser) return;
+    await api.deleteExam(id);
+    setExams(exams.filter(e => e.id !== id));
+  };
+
 
 
   const toggleConsultationStatus = async (id: string) => {
@@ -257,9 +271,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const toggleExamRealized = async (id: string) => {
     const exam = exams.find(e => e.id === id);
     if (!exam) return;
-    if (exam.status !== 'REQUESTED') return;
 
-    const updated = { ...exam, status: 'REALIZED' as any };
+    // Toggle logic: If REALIZED -> REQUESTED, If REQUESTED -> REALIZED, otherwise do nothing
+    let newStatus = exam.status;
+    if (exam.status === 'REQUESTED') newStatus = 'REALIZED';
+    else if (exam.status === 'REALIZED') newStatus = 'REQUESTED';
+    else return;
+
+    const updated = { ...exam, status: newStatus as any };
     await api.updateExam(updated);
     setExams(exams.map(e => e.id === id ? updated : e));
   };
@@ -273,7 +292,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       exams,
       tips,
       updatePregnancyData,
-      addConsultation, updateConsultation, addExamRequest, addVaccine, addExamResult,
+      addConsultation, updateConsultation, addExamRequest, addVaccine, addExamResult, updateExam, deleteExam,
       toggleConsultationStatus, toggleVaccineStatus, toggleExamRealized
     }}>
       {children}
