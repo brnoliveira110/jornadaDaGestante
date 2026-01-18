@@ -6,7 +6,11 @@ import {
   INITIAL_TIPS,
   MOCK_VACCINES
 } from '../constants';
-import { api } from '../services/api';
+import { userService } from '../services/userService';
+import { pregnancyService } from '../services/pregnancyService';
+import { consultationService } from '../services/consultationService';
+import { vaccineService } from '../services/vaccineService';
+import { examService } from '../services/examService';
 import Cookies from 'js-cookie';
 
 // Interfaces do Contexto Simplificadas
@@ -86,16 +90,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loadUserData = async (userId: string) => {
     try {
-      const pData = await api.getPregnancyData(userId).catch(() => null);
+      const pData = await pregnancyService.getPregnancyData(userId).catch(() => null);
       if (pData) setPregnancyData(pData);
 
-      const consults = await api.getConsultations(userId).catch(() => []);
+      const consults = await consultationService.getAllByPatient(userId).catch(() => []);
       setConsultations(consults);
 
-      const vacs = await api.getVaccines(userId).catch(() => []);
+      const vacs = await vaccineService.getVaccines(userId).catch(() => []);
       setVaccines(vacs);
 
-      const exms = await api.getExams(userId).catch(() => []);
+      const exms = await examService.getExams(userId).catch(() => []);
       setExams(exms);
 
     } catch (error) {
@@ -106,7 +110,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // --- Autenticação ---
   const login = async (username: string) => {
     try {
-      const users = await api.getUsers();
+      const users = await userService.getUsers();
       // Simple logic: find by name
       const found = users.find(u =>
         u.name.trim().toLowerCase() === username.trim().toLowerCase() ||
@@ -135,7 +139,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         avatarUrl: `https://ui-avatars.com/api/?name=${name.replace(' ', '+')}&background=F43F5E&color=fff`
       };
 
-      const createdUser = await api.createUser(newUser);
+      const createdUser = await userService.createUser(newUser);
 
       // Create initial empty pregnancy data
       const initialPregnancyData: PregnancyData = {
@@ -152,7 +156,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         theme: 'NEUTRAL'
       };
 
-      await api.createPregnancyData(initialPregnancyData);
+      await pregnancyService.createPregnancyData(initialPregnancyData);
 
       setCurrentUser(createdUser);
       // Salva nos Cookies por 7 dias
@@ -174,20 +178,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updatePregnancyData = async (data: Partial<PregnancyData>) => {
     if (!pregnancyData) return;
     const updated = { ...pregnancyData, ...data };
-    await api.updatePregnancyData(updated);
+    await pregnancyService.updatePregnancyData(updated);
     setPregnancyData(updated);
   };
 
   const addConsultation = async (consultation: Consultation) => {
     consultation.patientId = currentUser?.id!;
-    const saved = await api.createConsultation(consultation);
+    const saved = await consultationService.create(consultation);
     setConsultations([...consultations, saved]);
   };
 
   const updateConsultation = async (consultation: Consultation) => {
     if (!currentUser) return;
     consultation.patientId = currentUser.id;
-    await api.updateConsultation(consultation);
+    await consultationService.update(consultation.id, consultation);
     setConsultations(consultations.map(c => c.id === consultation.id ? consultation : c));
   };
 
@@ -210,33 +214,33 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       status: 'REQUESTED' as any,
       doctorName: 'Autogestão',
     };
-    const saved = await api.createExam(newExam);
+    const saved = await examService.createExam(newExam);
     setExams([saved, ...exams]);
   };
 
   const addVaccine = async (vaccine: Vaccine) => {
     if (!currentUser) return;
     vaccine.patientId = currentUser.id;
-    const saved = await api.createVaccine(vaccine);
+    const saved = await vaccineService.createVaccine(vaccine);
     setVaccines([...vaccines, saved]);
   };
 
   const addExamResult = async (exam: ExamResult) => {
     if (!currentUser) return;
     exam.patientId = currentUser.id;
-    const saved = await api.createExam(exam);
+    const saved = await examService.createExam(exam);
     setExams([...exams, saved]);
   };
 
   const updateExam = async (exam: ExamResult) => {
     if (!currentUser) return;
-    await api.updateExam(exam);
+    await examService.updateExam(exam);
     setExams(exams.map(e => e.id === exam.id ? exam : e));
   };
 
   const deleteExam = async (id: string) => {
     if (!currentUser) return;
-    await api.deleteExam(id);
+    await examService.deleteExam(id);
     setExams(exams.filter(e => e.id !== id));
   };
 
@@ -249,7 +253,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Toggle
     const newStatus = consultation.status === 'COMPLETED' ? 'SCHEDULED' : 'COMPLETED';
     const updated = { ...consultation, status: newStatus as any };
-    await api.updateConsultation(updated);
+    await consultationService.update(updated.id, updated);
 
     setConsultations(consultations.map(c => c.id === id ? updated : c));
   };
@@ -264,7 +268,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       status: newStatus as any,
       dateAdministered: newStatus === 'DONE' ? new Date().toISOString() : undefined
     };
-    await api.updateVaccine(updated);
+    await vaccineService.updateVaccine(updated);
     setVaccines(vaccines.map(v => v.id === id ? updated : v));
   };
 
@@ -279,7 +283,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     else return;
 
     const updated = { ...exam, status: newStatus as any };
-    await api.updateExam(updated);
+    await examService.updateExam(updated);
     setExams(exams.map(e => e.id === id ? updated : e));
   };
 

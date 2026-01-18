@@ -129,3 +129,6 @@ export interface Post {
   comments: Comment[];
   timestamp: string;
 }
+
+export type ConsultationCreateDto = Omit<Consultation, 'id'>;
+export type ConsultationResponseDto = Consultation;
