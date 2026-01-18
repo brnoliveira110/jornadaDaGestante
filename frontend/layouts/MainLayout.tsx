@@ -101,6 +101,20 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
                         <NavItem to="/nutritional-curve" icon={TrendingUp} label="Curva de Peso" />
                         <NavItem to="/tips" icon={Lightbulb} label="Dicas & Bem-estar" />
 
+                        <button
+                            onClick={() => {
+                                setIsCalculatorOpen(true);
+                                setIsSidebarOpen(false);
+                            }}
+                            className={`
+                                w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium text-sm lg:hidden
+                                text-slate-500 hover:bg-slate-100 hover:text-slate-900
+                            `}
+                        >
+                            <TrendingUp className="w-5 h-5" />
+                            <span>Calculadora IMC</span>
+                        </button>
+
                         <div className="my-4 border-t border-[#ffeebb]"></div>
 
                         <NavItem to="/setup" icon={Settings} label="Meus Dados Clínicos" />

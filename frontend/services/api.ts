@@ -16,7 +16,9 @@ async function fetchJson<T>(endpoint: string, options?: RequestInit): Promise<T>
     }
 
     // Handle 204 No Content
-    if (response.status === 204) return {} as T;
+    if (response.status === 204) {
+        return null as T;
+    }
 
     return response.json();
 }

@@ -14,15 +14,22 @@ const ExamsWrapper: React.FC<any> = () => {
 
   const handleSaveRequest = async () => {
     if (requestName.trim()) {
+      // Create date responsibly adjusting to local time to avoid timezone shifts
+      const [year, month, day] = requestDate.split('-').map(Number);
+      // Create date at noon to be safe or just standard local midnight construction
+      // new Date(y, m-1, d) creates a local date at 00:00:00
+      const localDate = new Date(year, month - 1, day);
+
       if (editingId) {
         // Edit mode
         const examToUpdate = exams.find(e => e.id === editingId);
         if (examToUpdate) {
-          await updateExam({ ...examToUpdate, name: requestName, date: new Date(requestDate).toISOString() });
+          await updateExam({ ...examToUpdate, name: requestName, date: localDate.toISOString() });
         }
       } else {
         // Create mode
-        await addExamRequest(requestName, requestDate);
+        // pass the string date directly or the ISO string from the local date
+        await addExamRequest(requestName, localDate.toISOString());
       }
       resetForm();
     }

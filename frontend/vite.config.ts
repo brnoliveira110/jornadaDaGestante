@@ -14,6 +14,9 @@ export default defineConfig(({ mode }) => {
       watch: {
         usePolling: true,
       },
+      hmr: {
+        clientPort: 5173,
+      },
     },
     plugins: [
       react(),
