@@ -52,28 +52,31 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 var app = builder.Build();
 
-// 4. AppSec: Global Exception Handler
+// 4. Pipeline de Middleware
+// CORS deve vir ANTES de tudo para garantir que headers sejam enviados até em caso de erro 500/401
 if (!app.Environment.IsDevelopment())
 {
+    app.UseCors("ProductionCors");
     app.UseExceptionHandler("/error");
     app.UseHsts();
-    app.UseCors("ProductionCors");
 }
 else 
 {
+    app.UseCors("AllowAll");
     app.UseSwagger();
     app.UseSwaggerUI();
-    app.UseCors("AllowAll");
+}
 
-    // Mantendo migração automática apenas em ambiente de desenvolvimento para facilitar
-    using (var scope = app.Services.CreateScope())
-    {
-        try {
-            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            db.Database.Migrate();
-        } catch (Exception ex) {
-            Console.WriteLine($"Migration failed: {ex.Message}");
-        }
+// Migração Automática de Banco de Dados (Prod & Dev)
+// Essencial para garantir que as tabelas existam no Render
+using (var scope = app.Services.CreateScope())
+{
+    try {
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        db.Database.Migrate();
+        Console.WriteLine("Database migrated successfully.");
+    } catch (Exception ex) {
+        Console.WriteLine($"Migration failed: {ex.Message}");
     }
 }
 
@@ -95,11 +98,14 @@ static string GetConnectionString(IConfiguration configuration)
         {
             var uri = new Uri(databaseUrl);
             var userInfo = uri.UserInfo.Split(':');
-            return $"Host={uri.Host};Port={uri.Port};Database={uri.AbsolutePath.TrimStart('/')};Username={userInfo[0]};Password={userInfo[1]};SSL Mode=Require;Trust Server Certificate=true";
+            var username = userInfo[0];
+            var password = userInfo.Length > 1 ? string.Join(":", userInfo.Skip(1)) : "";
+            
+            return $"Host={uri.Host};Port={uri.Port};Database={uri.AbsolutePath.TrimStart('/')};Username={username};Password={password};SSL Mode=Require;Trust Server Certificate=true";
         }
         catch
         {
-            return databaseUrl; // Retorna raw se falhar parse (pode ser connection string direta)
+            return databaseUrl; // Retorna raw se falhar parse
         }
     }
 
