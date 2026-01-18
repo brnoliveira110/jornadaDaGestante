@@ -53,16 +53,20 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 var app = builder.Build();
 
 // 4. Pipeline de Middleware
-// CORS deve vir ANTES de tudo para garantir que headers sejam enviados até em caso de erro 500/401
-if (!app.Environment.IsDevelopment())
+// DEBUG: Habilitando Developer Exception Page em TODOS os ambientes temporariamente para ver o erro real no navegador
+app.UseCors(app.Environment.IsDevelopment() ? "AllowAll" : "ProductionCors");
+
+app.UseDeveloperExceptionPage();
+
+// if (!app.Environment.IsDevelopment())
+// {
+//      app.UseExceptionHandler("/error");
+//      app.UseHsts();
+// }
+// else ...
+
+if (app.Environment.IsDevelopment())
 {
-    app.UseCors("ProductionCors");
-    app.UseExceptionHandler("/error");
-    app.UseHsts();
-}
-else 
-{
-    app.UseCors("AllowAll");
     app.UseSwagger();
     app.UseSwaggerUI();
 }
