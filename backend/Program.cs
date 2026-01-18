@@ -53,20 +53,17 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 var app = builder.Build();
 
 // 4. Pipeline de Middleware
-// DEBUG: Habilitando Developer Exception Page em TODOS os ambientes temporariamente para ver o erro real no navegador
-app.UseCors(app.Environment.IsDevelopment() ? "AllowAll" : "ProductionCors");
-
-app.UseDeveloperExceptionPage();
-
-// if (!app.Environment.IsDevelopment())
-// {
-//      app.UseExceptionHandler("/error");
-//      app.UseHsts();
-// }
-// else ...
-
-if (app.Environment.IsDevelopment())
+// 4. Pipeline de Middleware
+// CORS deve vir ANTES de tudo para garantir que headers sejam enviados até em caso de erro 500/401
+if (!app.Environment.IsDevelopment())
 {
+    app.UseCors("ProductionCors");
+    app.UseExceptionHandler("/error");
+    app.UseHsts();
+}
+else 
+{
+    app.UseCors("AllowAll");
     app.UseSwagger();
     app.UseSwaggerUI();
 }
@@ -104,8 +101,9 @@ static string GetConnectionString(IConfiguration configuration)
             var userInfo = uri.UserInfo.Split(':');
             var username = userInfo[0];
             var password = userInfo.Length > 1 ? string.Join(":", userInfo.Skip(1)) : "";
+            var port = uri.Port > 0 ? uri.Port : 5432;
             
-            return $"Host={uri.Host};Port={uri.Port};Database={uri.AbsolutePath.TrimStart('/')};Username={username};Password={password};SSL Mode=Require;Trust Server Certificate=true";
+            return $"Host={uri.Host};Port={port};Database={uri.AbsolutePath.TrimStart('/')};Username={username};Password={password};SSL Mode=Require;Trust Server Certificate=true";
         }
         catch
         {
