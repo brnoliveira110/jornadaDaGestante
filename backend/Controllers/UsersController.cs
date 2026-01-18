@@ -1,7 +1,8 @@
 using backend.Data;
+using backend.DTOs;
+using backend.Interfaces;
 using backend.Models;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace backend.Controllers;
 
@@ -9,42 +10,46 @@ namespace backend.Controllers;
 [Route("api/[controller]")]
 public class UsersController : ControllerBase
 {
-    private readonly AppDbContext _context;
+    private readonly IUserService _userService;
 
-    public UsersController(AppDbContext context)
+    public UsersController(IUserService userService)
     {
-        _context = context;
+        _userService = userService;
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<User>>> Get()
+    public async Task<ActionResult<IEnumerable<UserResponseDto>>> Get()
     {
-        return await _context.Users.ToListAsync();
+        var users = await _userService.GetAllAsync();
+        return Ok(users);
     }
 
     [HttpGet("{id}")]
-    public async Task<ActionResult<User>> Get(Guid id)
+    public async Task<ActionResult<UserResponseDto>> Get(Guid id)
     {
-        var item = await _context.Users.FindAsync(id);
-        if (item == null) return NotFound();
-        return item;
+        var user = await _userService.GetByIdAsync(id);
+        if (user == null) return NotFound();
+        return Ok(user);
     }
 
     [HttpPost]
-    public async Task<ActionResult<User>> Post(User item)
+    public async Task<ActionResult<UserResponseDto>> Post([FromBody] UserCreateDto dto)
     {
-        if (item.Id == Guid.Empty) item.Id = Guid.NewGuid();
-        _context.Users.Add(item);
-        await _context.SaveChangesAsync();
-        return CreatedAtAction(nameof(Get), new { id = item.Id }, item);
+        var createdUser = await _userService.CreateAsync(dto);
+        return CreatedAtAction(nameof(Get), new { id = createdUser.Id }, createdUser);
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> Put(Guid id, User item)
+    public async Task<IActionResult> Put(Guid id, [FromBody] UserCreateDto dto)
     {
-        if (id != item.Id) return BadRequest();
-        _context.Entry(item).State = EntityState.Modified;
-        await _context.SaveChangesAsync();
-        return NoContent();
+        try 
+        {
+            await _userService.UpdateAsync(id, dto);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
     }
 }
