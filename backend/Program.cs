@@ -12,7 +12,8 @@ var builder = WebApplication.CreateBuilder(args);
 // 1. AppSec: Configuração de CORS restritiva
 // Em produção, as origens devem vir do appsettings/env vars.
 // Ex: "AllowedOrigins": ["https://meuapp.com"]
-var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+var configOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+var allowedOrigins = configOrigins.Concat(new[] { "https://gestante-frontend.onrender.com" }).ToArray();
 
 builder.Services.AddCors(options =>
 {
