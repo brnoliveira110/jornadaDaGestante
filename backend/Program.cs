@@ -1,8 +1,11 @@
 using backend.Data;
 using backend.Services;
 using backend.Interfaces;
+using backend.Validators;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
+using FluentValidation;
+using FluentValidation.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -26,6 +29,10 @@ builder.Services.AddCors(options =>
 
 // 2. Injeção de Dependência (Camadas)
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IConsultationService, ConsultationService>();
+
+builder.Services.AddFluentValidationAutoValidation();
+builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>

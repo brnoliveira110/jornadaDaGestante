@@ -17,10 +17,13 @@ public class AppDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-        
-        // Example: If Primitive collections are not automatically supported in simpler SQLite scenarios
-        // .NET 8 defaults to simple JSON serialization for primitive lists in some cases,
-        // but explicit conversion is safer for 'RequestedExams' if needed.
-        // For now relying on default behavior of .NET 8/10.
+
+        // Conversão de List<string> <-> JSON String
+        modelBuilder.Entity<Consultation>()
+            .Property(c => c.RequestedExams)
+            .HasConversion(
+                v => System.Text.Json.JsonSerializer.Serialize(v, (System.Text.Json.JsonSerializerOptions?)null),
+                v => System.Text.Json.JsonSerializer.Deserialize<List<string>>(v, (System.Text.Json.JsonSerializerOptions?)null) ?? new List<string>()
+            );
     }
 }
