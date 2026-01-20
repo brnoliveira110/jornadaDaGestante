@@ -18,12 +18,7 @@ public class AppDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        // Conversão de List<string> <-> JSON String
-        modelBuilder.Entity<Consultation>()
-            .Property(c => c.RequestedExams)
-            .HasConversion(
-                v => System.Text.Json.JsonSerializer.Serialize(v, (System.Text.Json.JsonSerializerOptions?)null),
-                v => System.Text.Json.JsonSerializer.Deserialize<List<string>>(v, (System.Text.Json.JsonSerializerOptions?)null) ?? new List<string>()
-            );
+        // Npgsql maps List<string> to text[] native array by default.
+        // No conversion needed unless we want to store as JSON text (which conflicts with current DB schema).
     }
 }
