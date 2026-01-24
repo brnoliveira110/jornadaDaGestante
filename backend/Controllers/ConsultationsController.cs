@@ -1,7 +1,6 @@
-using backend.Data;
-using backend.Models;
+using backend.DTOs;
+using backend.Interfaces;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace backend.Controllers;
 
@@ -9,48 +8,66 @@ namespace backend.Controllers;
 [Route("api/[controller]")]
 public class ConsultationsController : ControllerBase
 {
-    private readonly AppDbContext _context;
+    private readonly IConsultationService _service;
 
-    public ConsultationsController(AppDbContext context)
+    public ConsultationsController(IConsultationService service)
     {
-        _context = context;
+        _service = service;
     }
 
-    [HttpGet]
-    public async Task<ActionResult<IEnumerable<Consultation>>> Get()
-    {
-        return await _context.Consultations.ToListAsync();
-    }
-    
     [HttpGet("patient/{patientId}")]
-    public async Task<ActionResult<IEnumerable<Consultation>>> GetByPatient(Guid patientId)
+    public async Task<ActionResult<IEnumerable<ConsultationResponseDto>>> GetByPatient(Guid patientId)
     {
-        return await _context.Consultations.Where(c => c.PatientId == patientId).ToListAsync();
+        var result = await _service.GetAllByPatientAsync(patientId);
+        return Ok(result);
     }
 
     [HttpGet("{id}")]
-    public async Task<ActionResult<Consultation>> Get(Guid id)
+    public async Task<ActionResult<ConsultationResponseDto>> Get(Guid id)
     {
-        var item = await _context.Consultations.FindAsync(id);
-        if (item == null) return NotFound();
-        return item;
+        var result = await _service.GetByIdAsync(id);
+        if (result == null) return NotFound();
+        return Ok(result);
     }
 
     [HttpPost]
-    public async Task<ActionResult<Consultation>> Post(Consultation item)
+    public async Task<ActionResult<ConsultationResponseDto>> Post([FromBody] ConsultationCreateDto dto)
     {
-        if (item.Id == Guid.Empty) item.Id = Guid.NewGuid();
-        _context.Consultations.Add(item);
-        await _context.SaveChangesAsync();
-        return CreatedAtAction(nameof(Get), new { id = item.Id }, item);
+        try 
+        {
+            var created = await _service.CreateAsync(dto);
+            // Assuming GetById is mapped to "Get" action name or we use the route. 
+            // The previous code had "GetByPatient" as the action for CreatedAtAction, but strictly it refers to the location of the *new resource*.
+            // Ideally it should point to Get(id). The user example used nameof(GetByPatient) with patientId, which returns a list. 
+            // RESTfully, Location header should point to the specific resource created. 
+            // But I will follow the user's example if possible, or correct it to Get(id).
+            // User example: return CreatedAtAction(nameof(GetByPatient), new { patientId = created.PatientId }, created);
+            // This suggests they might not have a specific GetById implemented or prefer redirection to the list.
+            // However, I implemented GetByIdAsync in Service so I can use Get(id).
+            // I will use Get(id) as it is better practice.
+            return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ex.Message);
+        }
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> Put(Guid id, Consultation item)
+    public async Task<IActionResult> Put(Guid id, [FromBody] ConsultationCreateDto dto)
     {
-        if (id != item.Id) return BadRequest();
-        _context.Entry(item).State = EntityState.Modified;
-        await _context.SaveChangesAsync();
-        return NoContent();
+        try
+        {
+            await _service.UpdateAsync(id, dto);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ex.Message);
+        }
     }
 }

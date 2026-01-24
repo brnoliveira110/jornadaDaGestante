@@ -68,3 +68,11 @@ public enum AlertTargetRole
     PATIENT,
     BOTH
 }
+
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum PregnancyTheme
+{
+    NEUTRAL,
+    BOY,
+    GIRL
+}

@@ -1,9 +1,0 @@
-bin/
-obj/
-.git/
-.gitignore
-*.db
-*.db-shm
-*.db-wal
-docker-compose.yml
-Dockerfile

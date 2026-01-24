@@ -7,23 +7,28 @@ interface AlertsProps {
 }
 
 const Alerts: React.FC<AlertsProps> = ({ fullPage = false }) => {
-  const { alerts, markAlertRead } = useData();
+  const { alerts, markAlertRead, requestNotificationPermission } = useData();
   const unreadCount = alerts.filter(a => !a.read).length;
 
   if (alerts.length === 0 && !fullPage) return null;
 
   return (
     <div className={`animate-in slide-in-from-top-4 duration-500 ${fullPage ? 'h-full' : 'mb-8'}`}>
-      
+
       {!fullPage && (
-        <div className="flex items-center gap-2 mb-4">
-          <div className="relative">
-            <Bell className="w-5 h-5 text-slate-600" />
-            {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-slate-50"></span>
-            )}
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Bell className="w-5 h-5 text-slate-600" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-slate-50"></span>
+              )}
+            </div>
+            <h3 className="text-lg font-bold text-slate-800">Alertas e Notificações</h3>
           </div>
-          <h3 className="text-lg font-bold text-slate-800">Alertas e Notificações</h3>
+          <button onClick={requestNotificationPermission} className="text-xs font-bold text-teal-600 hover:text-teal-700 bg-teal-50 px-3 py-1 rounded-full transition-colors">
+            Ativar Alertas
+          </button>
         </div>
       )}
 
@@ -36,7 +41,7 @@ const Alerts: React.FC<AlertsProps> = ({ fullPage = false }) => {
 
       <div className={`grid gap-4 ${fullPage ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
         {alerts.map((alert) => (
-          <div 
+          <div
             key={alert.id}
             className={`
               relative p-4 rounded-xl border flex items-start gap-3 transition-all
@@ -51,15 +56,15 @@ const Alerts: React.FC<AlertsProps> = ({ fullPage = false }) => {
               {alert.type === 'INFO' && <Info className="w-5 h-5 text-blue-500" />}
               {alert.type === 'SUCCESS' && <CheckCircle className="w-5 h-5 text-green-500" />}
             </div>
-            
+
             <div className="flex-1">
               <div className="flex justify-between items-start">
-                 <h4 className={`text-sm font-bold ${alert.read ? 'text-slate-500' : 'text-slate-800'}`}>
-                   {alert.title}
-                 </h4>
-                 <span className="text-[10px] text-slate-400 flex items-center gap-1">
-                    <Clock className="w-3 h-3" /> {new Date(alert.date).toLocaleDateString()}
-                 </span>
+                <h4 className={`text-sm font-bold ${alert.read ? 'text-slate-500' : 'text-slate-800'}`}>
+                  {alert.title}
+                </h4>
+                <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                  <Clock className="w-3 h-3" /> {new Date(alert.date).toLocaleDateString()}
+                </span>
               </div>
               <p className="text-xs text-slate-500 mt-1 leading-relaxed">
                 {alert.message}
@@ -67,7 +72,7 @@ const Alerts: React.FC<AlertsProps> = ({ fullPage = false }) => {
             </div>
 
             {!alert.read && (
-              <button 
+              <button
                 onClick={() => markAlertRead(alert.id)}
                 className="text-slate-400 hover:text-teal-600 transition-colors p-1"
                 title="Marcar como lida"

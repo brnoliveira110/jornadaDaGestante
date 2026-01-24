@@ -1,12 +1,17 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import {
-  User, PregnancyData, Consultation, Vaccine, ExamResult, Post, Alert, UserRole, BloodType, Comment, Tip
+  User, PregnancyData, Consultation, Vaccine, ExamResult, UserRole, BloodType, Tip
 } from '../types';
 import {
   INITIAL_TIPS,
   MOCK_VACCINES
 } from '../constants';
-import { api } from '../services/api';
+import { userService } from '../services/userService';
+import { pregnancyService } from '../services/pregnancyService';
+import { consultationService } from '../services/consultationService';
+import { vaccineService } from '../services/vaccineService';
+import { examService } from '../services/examService';
+import Cookies from 'js-cookie';
 
 // Interfaces do Contexto Simplificadas
 interface DataContextType {
@@ -20,28 +25,26 @@ interface DataContextType {
   consultations: Consultation[];
   vaccines: Vaccine[];
   exams: ExamResult[];
-  alerts: Alert[];
+
   tips: Tip[];
 
   // Ações de Autogestão
   updatePregnancyData: (data: Partial<PregnancyData>) => Promise<void>;
   addConsultation: (consultation: Consultation) => Promise<void>;
-  addExamRequest: (name: string) => Promise<void>;
+  updateConsultation: (consultation: Consultation) => Promise<void>;
+  addExamRequest: (name: string, date?: string) => Promise<void>;
   addVaccine: (vaccine: Vaccine) => Promise<void>;
   addExamResult: (exam: ExamResult) => Promise<void>;
-  uploadExamResult: (file: File, name: string) => Promise<void>;
+  updateExam: (exam: ExamResult) => Promise<void>;
+  deleteExam: (id: string) => Promise<void>;
+
   markAlertRead: (id: string) => Promise<void>;
 
+  // Toggles
   // Toggles
   toggleConsultationStatus: (id: string) => Promise<void>;
   toggleVaccineStatus: (id: string) => Promise<void>;
   toggleExamRealized: (id: string) => Promise<void>;
-
-  // Comunidade
-  posts: Post[];
-  addPost: (content: string) => Promise<void>;
-  addComment: (postId: string, content: string) => Promise<void>;
-  likePost: (postId: string) => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -54,67 +57,70 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [consultations, setConsultations] = useState<Consultation[]>([]);
   const [vaccines, setVaccines] = useState<Vaccine[]>([]);
   const [exams, setExams] = useState<ExamResult[]>([]);
-  const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [posts, setPosts] = useState<Post[]>([]);
   const [tips, setTips] = useState<Tip[]>(INITIAL_TIPS);
 
   // Load tips from API or keep static if preferred? 
   // We'll keep static INITIAL_TIPS for now but fetch others.
 
   useEffect(() => {
+    // 1. Tenta recuperar sessão salva dos Cookies
+    const savedUser = Cookies.get('currentUser');
+    if (savedUser) {
+      try {
+        const parsed = JSON.parse(savedUser);
+        setCurrentUser(parsed);
+      } catch (e) {
+        console.error("Erro ao recuperar sessão", e);
+        Cookies.remove('currentUser');
+      }
+    }
+  }, []);
+
+  useEffect(() => {
     if (currentUser) {
       loadUserData(currentUser.id);
     } else {
-      // Clear data
+      // Clear data regardless of method
       setPregnancyData(null);
       setConsultations([]);
       setVaccines([]);
       setExams([]);
-      setAlerts([]);
     }
-    loadCommunityPosts();
   }, [currentUser]);
 
   const loadUserData = async (userId: string) => {
     try {
-      const pData = await api.getPregnancyData(userId).catch(() => null);
+      const pData = await pregnancyService.getPregnancyData(userId).catch(() => null);
       if (pData) setPregnancyData(pData);
 
-      const consults = await api.getConsultations(userId).catch(() => []);
+      const consults = await consultationService.getAllByPatient(userId).catch(() => []);
       setConsultations(consults);
 
-      const vacs = await api.getVaccines(userId).catch(() => []);
+      const vacs = await vaccineService.getVaccines(userId).catch(() => []);
       setVaccines(vacs);
 
-      const exms = await api.getExams(userId).catch(() => []);
+      const exms = await examService.getExams(userId).catch(() => []);
       setExams(exms);
-
-      const alrts = await api.getAlerts(userId).catch(() => []);
-      setAlerts(alrts);
 
     } catch (error) {
       console.error("Failed to load user data", error);
     }
   };
 
-  const loadCommunityPosts = async () => {
-    try {
-      const allPosts = await api.getPosts().catch(() => []);
-      setPosts(allPosts);
-    } catch (error) {
-      console.error("Failed to load posts", error);
-    }
-  };
-
   // --- Autenticação ---
   const login = async (username: string) => {
     try {
-      const users = await api.getUsers();
+      const users = await userService.getUsers();
       // Simple logic: find by name
-      const found = users.find(u => u.name.toLowerCase() === username.toLowerCase() || u.name.toLowerCase().includes(username.toLowerCase()));
+      const found = users.find(u =>
+        u.name.trim().toLowerCase() === username.trim().toLowerCase() ||
+        u.name.trim().toLowerCase().includes(username.trim().toLowerCase())
+      );
 
       if (found) {
         setCurrentUser(found);
+        // Salva nos Cookies por 7 dias
+        Cookies.set('currentUser', JSON.stringify(found), { expires: 7, sameSite: 'Strict' });
         return true;
       }
       return false;
@@ -133,7 +139,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         avatarUrl: `https://ui-avatars.com/api/?name=${name.replace(' ', '+')}&background=F43F5E&color=fff`
       };
 
-      const createdUser = await api.createUser(newUser);
+      const createdUser = await userService.createUser(newUser);
 
       // Create initial empty pregnancy data
       const initialPregnancyData: PregnancyData = {
@@ -146,14 +152,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         preGestationalBMI: 22,
         bloodType: BloodType.A_POS,
         weightGoalMin: 9,
-        weightGoalMax: 12
+        weightGoalMax: 12,
+        theme: 'NEUTRAL'
       };
 
-      await api.createPregnancyData(initialPregnancyData);
-
-
+      await pregnancyService.createPregnancyData(initialPregnancyData);
 
       setCurrentUser(createdUser);
+      // Salva nos Cookies por 7 dias
+      Cookies.set('currentUser', JSON.stringify(createdUser), { expires: 7, sameSite: 'Strict' });
       return true; // Success
     } catch (e) {
       console.error("Register failed", e);
@@ -163,6 +170,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     setCurrentUser(null);
+    Cookies.remove('currentUser');
   };
 
   // --- Actions ---
@@ -170,55 +178,73 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updatePregnancyData = async (data: Partial<PregnancyData>) => {
     if (!pregnancyData) return;
     const updated = { ...pregnancyData, ...data };
-    await api.updatePregnancyData(updated);
+    await pregnancyService.updatePregnancyData(updated);
     setPregnancyData(updated);
   };
 
   const addConsultation = async (consultation: Consultation) => {
     consultation.patientId = currentUser?.id!;
-    const saved = await api.createConsultation(consultation);
+    const saved = await consultationService.create(consultation);
     setConsultations([...consultations, saved]);
   };
 
-  const addExamRequest = async (name: string) => {
+  const updateConsultation = async (consultation: Consultation) => {
     if (!currentUser) return;
+    consultation.patientId = currentUser.id;
+    await consultationService.update(consultation.id, consultation);
+    setConsultations(consultations.map(c => c.id === consultation.id ? consultation : c));
+  };
+
+  const addExamRequest = async (name: string, date?: string) => {
+    if (!currentUser) return;
+    // ensure date is ISO string if provided, else use current time
+    let validDate = new Date().toISOString();
+    if (date) {
+      try {
+        validDate = new Date(date).toISOString();
+      } catch (e) { console.error('Invalid date, using now'); }
+    }
+
     const newExam: ExamResult = {
       id: crypto.randomUUID(),
       patientId: currentUser.id,
       name,
-      date: new Date().toISOString(),
+      date: validDate,
       type: 'PDF' as any,
       status: 'REQUESTED' as any,
       doctorName: 'Autogestão',
     };
-    const saved = await api.createExam(newExam);
+    const saved = await examService.createExam(newExam);
     setExams([saved, ...exams]);
   };
 
   const addVaccine = async (vaccine: Vaccine) => {
     if (!currentUser) return;
     vaccine.patientId = currentUser.id;
-    const saved = await api.createVaccine(vaccine);
+    const saved = await vaccineService.createVaccine(vaccine);
     setVaccines([...vaccines, saved]);
   };
 
   const addExamResult = async (exam: ExamResult) => {
     if (!currentUser) return;
     exam.patientId = currentUser.id;
-    const saved = await api.createExam(exam);
+    const saved = await examService.createExam(exam);
     setExams([...exams, saved]);
   };
 
-  const uploadExamResult = async (file: File, name: string) => {
+  const updateExam = async (exam: ExamResult) => {
     if (!currentUser) return;
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('patientId', currentUser.id);
-    formData.append('name', name);
-
-    const saved = await api.uploadExam(formData);
-    setExams([...exams, saved]);
+    await examService.updateExam(exam);
+    setExams(exams.map(e => e.id === exam.id ? exam : e));
   };
+
+  const deleteExam = async (id: string) => {
+    if (!currentUser) return;
+    await examService.deleteExam(id);
+    setExams(exams.filter(e => e.id !== id));
+  };
+
+
 
   const toggleConsultationStatus = async (id: string) => {
     const consultation = consultations.find(c => c.id === id);
@@ -227,7 +253,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Toggle
     const newStatus = consultation.status === 'COMPLETED' ? 'SCHEDULED' : 'COMPLETED';
     const updated = { ...consultation, status: newStatus as any };
-    await api.updateConsultation(updated);
+    await consultationService.update(updated.id, updated);
 
     setConsultations(consultations.map(c => c.id === id ? updated : c));
   };
@@ -242,65 +268,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       status: newStatus as any,
       dateAdministered: newStatus === 'DONE' ? new Date().toISOString() : undefined
     };
-    await api.updateVaccine(updated);
+    await vaccineService.updateVaccine(updated);
     setVaccines(vaccines.map(v => v.id === id ? updated : v));
   };
 
   const toggleExamRealized = async (id: string) => {
     const exam = exams.find(e => e.id === id);
     if (!exam) return;
-    if (exam.status !== 'REQUESTED') return;
 
-    const updated = { ...exam, status: 'REALIZED' as any };
-    await api.updateExam(updated);
+    // Toggle logic: If REALIZED -> REQUESTED, If REQUESTED -> REALIZED, otherwise do nothing
+    let newStatus = exam.status;
+    if (exam.status === 'REQUESTED') newStatus = 'REALIZED';
+    else if (exam.status === 'REALIZED') newStatus = 'REQUESTED';
+    else return;
+
+    const updated = { ...exam, status: newStatus as any };
+    await examService.updateExam(updated);
     setExams(exams.map(e => e.id === id ? updated : e));
-  };
-
-  const markAlertRead = async (id: string) => {
-    await api.markAlertRead(id);
-    setAlerts(alerts.map(a => a.id === id ? { ...a, read: true } : a));
-  };
-
-  // Community
-  const addPost = async (content: string) => {
-    if (!currentUser) return;
-    const newPost: Post = {
-      id: crypto.randomUUID(),
-      authorName: currentUser.name,
-      content,
-      likes: 0,
-      comments: [],
-      timestamp: new Date().toISOString()
-    };
-    const saved = await api.createPost(newPost);
-    saved.comments = []; // Ensure initialized
-    setPosts([saved, ...posts]);
-  };
-
-  const addComment = async (postId: string, content: string) => {
-    if (!currentUser) return;
-    const newComment: Comment = {
-      id: crypto.randomUUID(),
-      postId,
-      authorName: currentUser.name,
-      content,
-      timestamp: new Date().toISOString()
-    };
-    await api.addComment(postId, newComment);
-
-    // Refresh posts/comments or manually update state
-    const updatedPosts = posts.map(p => {
-      if (p.id === postId) {
-        return { ...p, comments: [...(p.comments || []), newComment] };
-      }
-      return p;
-    });
-    setPosts(updatedPosts);
-  };
-
-  const likePost = async (postId: string) => {
-    await api.likePost(postId);
-    setPosts(posts.map(p => p.id === postId ? { ...p, likes: p.likes + 1 } : p));
   };
 
   return (
@@ -310,12 +294,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       consultations,
       vaccines,
       exams,
-      alerts, tips, posts,
+      tips,
       updatePregnancyData,
-      addConsultation, addExamRequest, addVaccine, addExamResult, uploadExamResult,
-      markAlertRead,
-      toggleConsultationStatus, toggleVaccineStatus, toggleExamRealized,
-      addPost, addComment, likePost
+      addConsultation, updateConsultation, addExamRequest, addVaccine, addExamResult, updateExam, deleteExam,
+      toggleConsultationStatus, toggleVaccineStatus, toggleExamRealized
     }}>
       {children}
     </DataContext.Provider>

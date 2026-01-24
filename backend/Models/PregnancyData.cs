@@ -20,4 +20,6 @@ public class PregnancyData
     
     public double WeightGoalMax { get; set; }
     public double WeightGoalMin { get; set; }
+    
+    public PregnancyTheme Theme { get; set; } = PregnancyTheme.NEUTRAL;
 }

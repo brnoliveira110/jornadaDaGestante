@@ -36,6 +36,7 @@ export interface PregnancyData {
   spouseBloodType?: BloodType;
   weightGoalMax: number;
   weightGoalMin: number;
+  theme: 'NEUTRAL' | 'BOY' | 'GIRL';
 }
 
 // 3. Schema de Consultas (Prontuário)
@@ -87,31 +88,34 @@ export interface ExamResult {
   digitalSignature?: string; // Hash simulado
 }
 
-// 6. Schema de Alertas
-export interface Alert {
-  id: string;
-  userId?: string; // Opcional se for geral, ou obrigatório se for pessoal
-  title: string;
-  message: string;
-  type: 'WARNING' | 'INFO' | 'SUCCESS';
-  date: string;
-  read: boolean;
-  targetRole: UserRole | 'BOTH';
-}
+
 
 // 7. Schema de Dicas
 export interface Tip {
   id: string;
-  month: number;
+  minWeek: number;
+  maxWeek: number;
   category: string;
   title: string;
   content: string;
   readTime: string;
 }
 
+
+
+export interface WeeklyDevelopment {
+  week: number;
+  sizeComparison: string;
+  weight: string;
+  length: string;
+  heartRate: string;
+  description: string;
+  imageUrl?: string;
+}
+
 export interface Comment {
   id: string;
-  postId: string; // Adicionado
+  postId: string;
   authorName: string;
   content: string;
   timestamp: string;
@@ -125,3 +129,6 @@ export interface Post {
   comments: Comment[];
   timestamp: string;
 }
+
+export type ConsultationCreateDto = Omit<Consultation, 'id'>;
+export type ConsultationResponseDto = Consultation;

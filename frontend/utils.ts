@@ -78,3 +78,16 @@ export const formatBloodType = (type?: BloodType): string => {
     default: return type;
   }
 };
+
+/**
+ * Retorna a URL da imagem de desenvolvimento fetal mais adequada para a semana
+ */
+export const getFetalImageUrl = (week: number): string => {
+  // Mapeamento para evitar "buracos" visuais
+  if (week <= 2) return '/assets/images/fetal_development/week_2.png';
+  if (week <= 4) return '/assets/images/fetal_development/week_4.png';
+  if (week <= 6) return '/assets/images/fetal_development/week_6.png';
+  if (week <= 16) return '/assets/images/fetal_development/week_12.png';
+  if (week <= 28) return '/assets/images/fetal_development/week_24.png';
+  return '/assets/images/fetal_development/week_36.png';
+};

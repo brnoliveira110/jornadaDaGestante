@@ -1,9 +1,7 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:15
-    container_name: gestante-db
+    container_name: gestante-db-dev
     environment:
       - POSTGRES_USER=user
       - POSTGRES_PASSWORD=password
@@ -11,14 +9,17 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data/
     ports:
-      - "5432:5432" # Exponha para debugging, pode ser removido depois
-    restart: unless-stopped
+      - "5432:5432"
 
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: gestante-backend
+    image: mcr.microsoft.com/dotnet/sdk:10.0
+    container_name: gestante-backend-dev
+    volumes:
+      - ./backend:/src
+      - /src/bin
+      - /src/obj
+    working_dir: /src
+    command: dotnet watch run --urls=http://0.0.0.0:8080
     ports:
       - "5167:8080"
     environment:
@@ -29,18 +30,21 @@ services:
       - DB_PASSWORD=password
     depends_on:
       - db
-    restart: always
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: gestante-frontend
+    image: node:20-alpine
+    container_name: gestante-frontend-dev
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    working_dir: /app
+    command: sh -c "npm config set fetch-retry-maxtimeout 120000 && npm install && npm run dev -- --host"
     ports:
-      - "5173:80"
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://127.0.0.1:5167/api
     depends_on:
       - backend
-    restart: always
 
 volumes:
   postgres_data:

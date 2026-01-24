@@ -4,15 +4,14 @@ import { MainLayout } from '../layouts/MainLayout';
 import { useData } from '../context/DataContext';
 
 import DashboardPage from '../pages/DashboardPage';
+import { calculateGestationalAge } from '../utils';
 import TimelinePage from '../pages/TimelinePage';
 import MedicalRecordsPageWrapper from '../pages/MedicalRecordsPage';
 import ExamsPageWrapper from '../pages/ExamsPage';
 import VaccinesPage from '../pages/VaccinesPage';
 import NutritionalCurvePage from '../pages/NutritionalCurvePage';
 import TipsPage from '../pages/TipsPage';
-import CommunityPage from '../pages/CommunityPage';
 import SetupPage from '../pages/SetupPage';
-import NotificationsPageWrapper from '../pages/NotificationsPage';
 import Login from '../components/Login';
 import Register from '../components/Register';
 
@@ -30,11 +29,12 @@ const DashboardWrapper = () => {
     return <DashboardPage data={pregnancyData} user={currentUser} currentWeight={currentWeight} onViewTips={onViewTips} />;
 };
 
+
+
 const TimelineWrapper = () => {
     const { pregnancyData } = useData();
-    // Re-calculating here or moving logic to hook
-    const currentWeek = pregnancyData ? (new Date().getTime() - new Date(pregnancyData.dum).getTime()) / (1000 * 60 * 60 * 24 * 7) : 0; // Simplified
-    return <TimelinePage currentWeek={Math.floor(currentWeek)} />;
+    const currentWeek = pregnancyData ? calculateGestationalAge(pregnancyData.dum) : 0;
+    return <TimelinePage currentWeek={currentWeek} />;
 };
 
 const MedicalRecordsWrapper = () => {
@@ -49,9 +49,7 @@ const ExamsWrapper = () => {
     return <ExamsPageWrapper userRole={currentUser.role} exams={[]} />;
 };
 
-const NotificationsWrapper = () => {
-    return <NotificationsPageWrapper fullPage />;
-};
+
 
 
 // Auth Guard
@@ -99,16 +97,8 @@ export const router = createBrowserRouter([
         element: <ProtectedRoute><TipsPage /></ProtectedRoute>
     },
     {
-        path: "/community",
-        element: <ProtectedRoute><CommunityPage /></ProtectedRoute>
-    },
-    {
         path: "/setup",
         element: <ProtectedRoute><SetupPage /></ProtectedRoute>
-    },
-    {
-        path: "/notifications",
-        element: <ProtectedRoute><NotificationsWrapper /></ProtectedRoute>
     }
 ]);
 
